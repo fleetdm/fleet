@@ -311,9 +311,9 @@ To review applicants:
 3. On the "To review" tab, read each applicant's LinkedIn profile, location and application notes.
 4. For each applicant, choose one:
    - **Add to pipeline**: the applicant is added to the position's candidate tracker and enters the interview process at the first stage. For Software Engineer applicants, the CTO selects the hiring manager (or "not sure yet") before adding.
-   - **Pass**: the applicant is not a fit. Do not contact the applicant.
-   - **Save for later**: the applicant is not a fit for this opening, but should be considered for future roles. Add a short reason.
-5. Review new applicants at least [once a week] so that no applicant waits more than [X business days] for a decision.
+   - **Pass**: the applicant will not enter the interview process at this time. They are welcome to apply again via the contact form.
+   - **Save for later**: the applicant will not enter the interview process at this time, but we should keep them in mind for future positions. Add a short reason.
+5. Each hiring manager reviews applications at least once per week.
 
 > Applicants who are already in a candidate tracker, or who are located in a country where [Fleet is unable to hire](https://fleetdm.com/handbook/company/leadership#hiring), are excluded from "To review" automatically.
 
