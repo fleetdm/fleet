@@ -1,0 +1,1 @@
+- Fixed the macOS `find_cmd` table hanging or returning wrong paths for some file names.
