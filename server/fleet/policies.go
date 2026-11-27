@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"golang.org/x/text/unicode/norm"
@@ -289,6 +290,20 @@ func verifyPolicyName(name string) error {
 		return errPolicyEmptyName
 	}
 	return nil
+}
+
+// PolicyReportNameMaxLength matches the varchar(255) size of policies.name and queries.name.
+const PolicyReportNameMaxLength = 255
+
+// ValidatePolicyReportNameLength checks that a policy or report name fits its database
+// column, so callers get a 422 instead of a raw "Data too long" MySQL error and
+// GitOps dry runs catch it. kind is "policy" or "report".
+func ValidatePolicyReportNameLength(kind, name string) *InvalidArgumentError {
+	if utf8.RuneCountInString(name) <= PolicyReportNameMaxLength {
+		return nil
+	}
+	// Show only the start of an over-long name so the message stays readable.
+	return NewInvalidArgumentError("name", fmt.Sprintf("%s %q name may not exceed %d characters", kind, string([]rune(name)[:40])+"...", PolicyReportNameMaxLength))
 }
 
 func emptyString(s string) bool {

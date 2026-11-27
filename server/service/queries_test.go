@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -1342,4 +1343,32 @@ func TestApplyQuerySpec(t *testing.T) {
 		},
 	})
 	assert.Error(t, err)
+}
+
+func TestReportNameLengthValidation(t *testing.T) {
+	ds := new(mock.Store)
+	ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+		return &fleet.Query{ID: id, Name: "r", Query: "SELECT 1"}, nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	tooLong := strings.Repeat("a", 256)
+	nameErr := `report "` + strings.Repeat("a", 40) + `..." name may not exceed 255 characters`
+	requireInvalidName := func(t *testing.T, err error) {
+		var invalid *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalid)
+		require.ErrorContains(t, err, nameErr)
+	}
+
+	_, err := svc.NewQuery(ctx, fleet.QueryPayload{Name: &tooLong, Query: new("SELECT 1")})
+	requireInvalidName(t, err)
+	_, err = svc.ModifyQuery(ctx, 1, fleet.QueryPayload{Name: &tooLong})
+	requireInvalidName(t, err)
+	err = svc.ApplyQuerySpecs(ctx, []*fleet.QuerySpec{{Name: tooLong, Query: "SELECT 1"}})
+	requireInvalidName(t, err)
+
+	require.False(t, ds.NewQueryFuncInvoked)
+	require.False(t, ds.SaveQueryFuncInvoked)
+	require.False(t, ds.ApplyQueriesFuncInvoked)
 }

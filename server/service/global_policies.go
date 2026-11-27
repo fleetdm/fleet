@@ -39,6 +39,9 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+	if err := fleet.ValidatePolicyReportNameLength("policy", p.Name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate policy name")
+	}
 
 	if p.AutomationType != nil {
 		if !p.AutomationType.IsValid() {
@@ -394,6 +397,9 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
+		}
+		if err := fleet.ValidatePolicyReportNameLength("policy", policy.Name); err != nil {
+			return ctxerr.Wrap(ctx, err, "validate policy name")
 		}
 
 		if err := checkPolicyAutomations(policySpecTeamID(policy, teamIDsByName), nil, policy.Automations()); err != nil {

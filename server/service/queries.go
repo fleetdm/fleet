@@ -306,6 +306,11 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
 	}
+	if p.Name != nil {
+		if err := fleet.ValidatePolicyReportNameLength("report", *p.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate report name")
+		}
+	}
 
 	query := &fleet.Query{Saved: true, TeamID: p.TeamID}
 
@@ -439,6 +444,11 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("query payload verification: %s", err),
 		})
+	}
+	if p.Name != nil {
+		if err := fleet.ValidatePolicyReportNameLength("report", *p.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate report name")
+		}
 	}
 
 	// We use query.TeamID because we do not allow changing the team.
@@ -743,6 +753,10 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("invalid query spec: %s", err),
 			})
+		}
+		if err := fleet.ValidatePolicyReportNameLength("report", spec.Name); err != nil {
+			setAuthCheckedOnPreAuthErr(ctx)
+			return ctxerr.Wrap(ctx, err, "validate report name")
 		}
 		query, err := svc.queryFromSpec(ctx, spec)
 		if err != nil {

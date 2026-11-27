@@ -69,6 +69,9 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+	if err := fleet.ValidatePolicyReportNameLength("policy", p.Name); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validate policy name")
+	}
 	if err := svc.checkNewPolicyAutomations(ctx, &teamID, p); err != nil {
 		return nil, err
 	}
@@ -701,6 +704,11 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
+	}
+	if p.Name != nil {
+		if err := fleet.ValidatePolicyReportNameLength("policy", *p.Name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validate policy name")
+		}
 	}
 
 	if (len(p.LabelsIncludeAll) > 0 || len(p.LabelsExcludeAll) > 0 || len(p.LabelsIncludeAny) > 0 || len(p.LabelsExcludeAny) > 0) && !license.IsPremium(ctx) {

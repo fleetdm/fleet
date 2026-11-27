@@ -2228,6 +2228,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	multiError = multierror.Append(multiError, validateRawKeys(policiesRaw, reflect.TypeFor[[]Policy](), filePath, []string{"policies"})...)
 	for _, item := range policies {
 		if item.Path == nil {
+			multiError = validatePolicyNameLength(multiError, item.Name, parentFilePath)
 			if err := checkPolicyAutomationKeys(parentFilePath, result.TeamName, &item.GitOpsPolicySpec); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
@@ -2272,6 +2273,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 								multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 							)
 						} else {
+							multiError = validatePolicyNameLength(multiError, pp.Name, *item.Path)
 							if err := checkPolicyAutomationKeys(*item.Path, result.TeamName, &pp.GitOpsPolicySpec); err != nil {
 								multiError = multierror.Append(multiError, err)
 								continue
@@ -2666,7 +2668,28 @@ func validateReport(r *fleet.QuerySpec, filePath string, itemPath string) error 
 	if !isASCII(r.Name) {
 		return fmt.Errorf("`name` must be in ASCII: %s in %s at %s", r.Name, filepath.Base(filePath), itemPath)
 	}
+	if err := fleet.ValidatePolicyReportNameLength("report", r.Name); err != nil {
+		return fmt.Errorf("%w in %s at %s", invalidReasons(err), filepath.Base(filePath), itemPath)
+	}
 	return nil
+}
+
+// validatePolicyNameLength reports an over-long policy name against the file that holds it.
+// It measures the NFC form, because that is the name parsePolicies keeps.
+func validatePolicyNameLength(multiError *multierror.Error, name, filePath string) *multierror.Error {
+	if err := fleet.ValidatePolicyReportNameLength("policy", norm.NFC.String(name)); err != nil {
+		return multierror.Append(multiError, fmt.Errorf("%w in %s", invalidReasons(err), filepath.Base(filePath)))
+	}
+	return multiError
+}
+
+// invalidReasons keeps only the reasons, without the generic "validation failed: name" prefix.
+func invalidReasons(err *fleet.InvalidArgumentError) error {
+	var errs []error
+	for _, inv := range err.Invalid() {
+		errs = append(errs, errors.New(inv["reason"]))
+	}
+	return errors.Join(errs...)
 }
 
 func parseReports(top map[string]json.RawMessage, result *GitOps, baseDir string, logFn Logf, filePath string, multiError *multierror.Error) *multierror.Error {

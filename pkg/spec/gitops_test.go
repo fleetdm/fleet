@@ -7219,6 +7219,55 @@ labels:
 	require.ErrorContains(t, err, `label "`+strings.Repeat("a", 40)+`..." name may not exceed 255 characters`)
 }
 
+func TestPolicyAndReportNameLengths(t *testing.T) {
+	t.Parallel()
+
+	policyYAML := func(name string) string {
+		return getTeamConfig([]string{"policies"}) + fmt.Sprintf(`
+policies:
+  - name: %q
+    query: SELECT 1;`, name)
+	}
+	reportYAML := func(name string) string {
+		return getTeamConfig([]string{"reports"}) + fmt.Sprintf(`
+reports:
+  - name: %q
+    query: SELECT 1;`, name)
+	}
+	nameErr := func(kind string) string {
+		return kind + ` "` + strings.Repeat("a", 40) + `..." name may not exceed 255 characters`
+	}
+	parse := func(s string) (string, error) {
+		path, basePath := createTempFile(t, "", s)
+		_, err := GitOpsFromFile(path, basePath, nil, nopLogf)
+		return filepath.Base(path), err
+	}
+
+	_, err := parse(policyYAML(strings.Repeat("a", 255)))
+	require.NoError(t, err)
+	file, err := parse(policyYAML(strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, nameErr("policy")+" in "+file)
+	require.NotContains(t, err.Error(), "validation failed")
+
+	// GitOps stores policy names in NFC, so the limit applies to the NFC form: 128 "e" + combining
+	// acute (256 runes) become 128 "é", and U+0344 expands to two runes.
+	_, err = parse(policyYAML(strings.Repeat("e\u0301", 128)))
+	require.NoError(t, err)
+	_, err = parse(policyYAML("\u0344" + strings.Repeat("a", 254)))
+	require.ErrorContains(t, err, "name may not exceed 255 characters")
+
+	// A policy from a path: file is reported against that file, where its name is.
+	policyFile, _ := createTempFile(t, "", fmt.Sprintf("- name: %q\n  query: SELECT 1;\n", strings.Repeat("a", 256)))
+	_, err = parse(getTeamConfig([]string{"policies"}) + "\npolicies:\n  - path: " + policyFile + "\n")
+	require.ErrorContains(t, err, nameErr("policy")+" in "+filepath.Base(policyFile))
+
+	_, err = parse(reportYAML(strings.Repeat("a", 255)))
+	require.NoError(t, err)
+	file, err = parse(reportYAML(strings.Repeat("a", 256)))
+	require.ErrorContains(t, err, nameErr("report")+" in "+file+" at reports[0]")
+	require.NotContains(t, err.Error(), "validation failed")
+}
+
 func TestGitOpsPatchDeadlineSettings(t *testing.T) {
 	t.Parallel()
 
