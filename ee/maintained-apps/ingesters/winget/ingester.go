@@ -130,7 +130,9 @@ func isTransientGitHubError(err error) bool {
 type wingetIngester struct {
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
-	logger       *slog.Logger
+	// dependencyManifests caches the manifests of runtimes many apps depend on.
+	dependencyManifests map[string]installerManifest
+	logger              *slog.Logger
 }
 
 // wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
@@ -161,12 +163,16 @@ func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.R
 	return out
 }
 
-func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+// latestInstallerManifest returns the installer manifest of a package's newest version,
+// and the repo directory it came from.
+func (i *wingetIngester) latestInstallerManifest(ctx context.Context, packageIdentifier string) (installerManifest, string, error) {
+	var m installerManifest
+
 	// this is the path within the winget GitHub repo where the manifests are located
 	dirPath := path.Join(
 		"manifests",
-		strings.ToLower(input.PackageIdentifier[:1]),
-		strings.ReplaceAll(input.PackageIdentifier, ".", "/"),
+		strings.ToLower(packageIdentifier[:1]),
+		strings.ReplaceAll(packageIdentifier, ".", "/"),
 	)
 
 	_, repoContents, _, err := i.githubClient.Repositories.GetContents(ctx,
@@ -176,12 +182,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		i.ghClientOpts,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("get data from winget repo: %w", err)
+		return m, "", fmt.Errorf("get data from winget repo: %w", err)
 	}
 
 	versionDirs := wingetVersionManifestDirs(repoContents)
 	if len(versionDirs) == 0 {
-		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+		return m, "", ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
 			"path": dirPath,
 		})
 	}
@@ -193,9 +199,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// grouping directories (e.g. "2020/20.001.30002") that look like version
 	// dirs but don't contain manifest files at the expected depth. Skip those
 	// and fall through to the next candidate.
-	var m installerManifest
-	var l localeManifest
-	var versionFound bool
 	for _, versionDir := range versionDirs {
 		vName := versionDir.GetName()
 		if vName == "" {
@@ -205,7 +208,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		installerManifestPath := path.Join(
 			dirPath,
 			vName,
-			fmt.Sprintf("%s.installer.yaml", input.PackageIdentifier),
+			fmt.Sprintf("%s.installer.yaml", packageIdentifier),
 		)
 
 		fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
@@ -221,46 +224,51 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 				i.logger.DebugContext(ctx, "installer manifest not found, trying next version", "version", vName, "err", err)
 				continue
 			}
-			return nil, ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
+			return m, "", ctxerr.Wrap(ctx, err, "getting winget installer manifest file contents")
 		}
 
 		contents, err := fileContents.GetContent()
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
+			return m, "", ctxerr.Wrap(ctx, err, "extracting installer manifest file contents")
 		}
 
 		if err := yaml.Unmarshal([]byte(contents), &m); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
+			return m, "", ctxerr.Wrap(ctx, err, "unmarshaling winget manifest")
 		}
 
-		localeManifestPath := path.Join(dirPath, vName, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
-		fileContents, _, _, err = i.githubClient.Repositories.GetContents(ctx,
-			"microsoft",
-			"winget-pkgs",
-			localeManifestPath,
-			i.ghClientOpts,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
-		}
-
-		contents, err = fileContents.GetContent()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
-		}
-
-		if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
-		}
-
-		versionFound = true
-		break
+		return m, path.Join(dirPath, vName), nil
 	}
 
-	if !versionFound {
-		return nil, ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
-			"path": dirPath,
-		})
+	return m, "", ctxerr.NewWithData(ctx, "no valid version manifest found for app", map[string]any{
+		"path": dirPath,
+	})
+}
+
+func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
+	m, versionPath, err := i.latestInstallerManifest(ctx, input.PackageIdentifier)
+	if err != nil {
+		return nil, err
+	}
+
+	localeManifestPath := path.Join(versionPath, fmt.Sprintf("%s.locale.en-US.yaml", input.PackageIdentifier))
+	fileContents, _, _, err := i.githubClient.Repositories.GetContents(ctx,
+		"microsoft",
+		"winget-pkgs",
+		localeManifestPath,
+		i.ghClientOpts,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting winget manifest locale file contents")
+	}
+
+	contents, err := fileContents.GetContent()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting locale manifest contents")
+	}
+
+	var l localeManifest
+	if err := yaml.Unmarshal([]byte(contents), &l); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling winget locale manifest")
 	}
 
 	var out maintained_apps.FMAManifestApp
@@ -449,7 +457,15 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.ExistsQuery != "" {
 		out.Queries.Exists = input.ExistsQuery
 	}
-	out.InstallScript = installScript
+	declaredDependencies := selectedInstaller.Dependencies.PackageDependencies
+	if len(declaredDependencies) == 0 {
+		declaredDependencies = m.Dependencies.PackageDependencies
+	}
+	resolvedDependencies, err := i.resolveDependencies(ctx, declaredDependencies, input.InstallerArch)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolving dependencies")
+	}
+	out.InstallScript = prependDependencies(installScript, input.Name, resolvedDependencies)
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "pre-processing uninstall script")
@@ -773,6 +789,7 @@ type installerManifest struct {
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
 	Scope                  string                   `yaml:"Scope"`
+	Dependencies           dependencies             `yaml:"Dependencies,omitempty"`
 }
 
 type installer struct {
@@ -789,6 +806,7 @@ type installer struct {
 	PackageFamilyName      string                   `yaml:"PackageFamilyName"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	InstallerLocale        string                   `yaml:"InstallerLocale"`
+	Dependencies           dependencies             `yaml:"Dependencies,omitempty"`
 }
 type installerSwitches struct {
 	Silent             string `yaml:"Silent"`
