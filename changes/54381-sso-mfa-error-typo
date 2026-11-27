@@ -1,0 +1,1 @@
+- Fixed a typo in the error returned when turning on Fleet MFA for an SSO user ("Fleet MFA is is not applicable to SSO users").
