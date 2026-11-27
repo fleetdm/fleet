@@ -187,9 +187,7 @@ If the candidate passes all of these steps then continue with [hiring a new team
 
 ### Confirm and celebrate
 
-The relevant Product Designer (PD) and the Manager of Customer Support and Solutions Architecture (CSA) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD notifies the requester in the story with context on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up to the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the story and leave feedback.
-
-If the story has customer labels, it's up to the Manager of CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to move the story to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
+The relevant Product Designer (PD) reviews the checkboxes in user stories we shipped but haven't closed. Are they done? If not, notify the relevant contributor to help get them done. If they're done, the PD closes the story with a comment that @ mentions the Customer Success Manager (CSM) on whether they think the entire request is fulfilled or still has some work left (more user stories to be drafted and shipped).
 
 
 ### Update a company brand front

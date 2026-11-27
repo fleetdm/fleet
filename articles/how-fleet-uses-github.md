@@ -27,7 +27,7 @@ After wireframes have been approved, work will begin on implementing and testing
 
 You can learn more about [the statuses](https://fleetdm.com/handbook/company/product-groups#board-columns) of our GitHub projects and [how issues move](https://fleetdm.com/handbook/company/product-groups#how-issues-move) through them in our handbook.
 
-Feature requests from customers are left open until they have gone through [Confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), and are confirmed as fulfilled by the Manager of Customer Support and Solutions Architecture. The account's CSM then informs the customer and closes out the request after verifying with the customer.
+Feature requests from customers are left open until they have gone through [Confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate). When a story ships, its Product Designer closes it with a comment that @ mentions the account's CSM on whether they think the entire request is fulfilled or still has some work left.
 
 Sometimes feature requests get converted to [quick wins](https://fleetdm.com/handbook/company/product-groups#work-items), which go through a simplified, quicker process than full feature requests that don't get unpacked and don't go through Feature fest.
 
