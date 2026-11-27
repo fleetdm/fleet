@@ -1903,6 +1903,76 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 	return result, nil
 }
 
+// checkGlobBaseDir returns an error if the directory part of a glob pattern
+// (which may itself contain glob metacharacters) matches no existing directory.
+func checkGlobBaseDir(pattern string, baseDir string, entityType string) error {
+	// A {a,b} group can span the last separator ("{reports/*.yml,policies/*.yml}"),
+	// so each alternative is split into its own directory pattern.
+	var dirPatterns []string
+	for _, alt := range expandBraceAlternatives(filepath.ToSlash(pattern)) {
+		dirPattern := filepath.Dir(resolveApplyRelativePath(baseDir, alt))
+		matches, err := doublestar.FilepathGlob(dirPattern)
+		if err != nil {
+			return fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+		}
+		for _, match := range matches {
+			if info, err := os.Stat(match); err == nil && info.IsDir() {
+				return nil
+			}
+		}
+		dirPatterns = append(dirPatterns, fmt.Sprintf("%q", dirPattern))
+	}
+	return fmt.Errorf(`%s "paths" %q matched no files: no directory matches %s`, entityType, pattern, strings.Join(dirPatterns, " or "))
+}
+
+// expandBraceAlternatives returns one pattern per alternative of each {a,b}
+// group in pattern. A pattern without a complete group is returned as is.
+func expandBraceAlternatives(pattern string) []string {
+	depth, start := 0, 0
+	var commas []int
+	for i := 0; i < len(pattern); i++ {
+		switch pattern[i] {
+		case '\\':
+			i++
+		case '[':
+			// Braces and commas inside a character class are literal.
+			for j := i + 1; j < len(pattern); j++ {
+				if pattern[j] == '\\' {
+					j++
+				} else if pattern[j] == ']' {
+					i = j
+					break
+				}
+			}
+		case '{':
+			if depth == 0 {
+				start, commas = i, nil
+			}
+			depth++
+		case ',':
+			if depth == 1 {
+				commas = append(commas, i)
+			}
+		case '}':
+			if depth == 0 {
+				continue
+			}
+			depth--
+			if depth > 0 {
+				continue
+			}
+			bounds := append(append([]int{start}, commas...), i)
+			var out []string
+			for j := 1; j < len(bounds); j++ {
+				alt := pattern[:start] + pattern[bounds[j-1]+1:bounds[j]] + pattern[i+1:]
+				out = append(out, expandBraceAlternatives(alt)...)
+			}
+			return out
+		}
+	}
+	return []string{pattern}
+}
+
 // expandBaseItems validates path/paths fields on each entity (e.g. Label), expands glob
 // patterns in "paths" entries, and returns a flat list where every entity with
 // a file reference has only Path set (resolved to an absolute path). Entities
@@ -1975,6 +2045,14 @@ func expandBaseItems[T any, PT interface {
 				continue
 			}
 			if len(expanded) == 0 {
+				// A missing directory is almost always a typo; treating it as an
+				// empty list would delete every existing entity of this type. An
+				// existing empty directory is a legitimate placeholder (the
+				// `fleetctl new` scaffold globs over .gitkeep-only folders).
+				if err := checkGlobBaseDir(*baseItem.Paths, baseDir, entityType); err != nil {
+					errs = append(errs, err)
+					continue
+				}
 				opts.LogFn("[!] glob pattern %q matched no %s files\n", *baseItem.Paths, entityType)
 				continue
 			}
