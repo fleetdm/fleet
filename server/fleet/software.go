@@ -747,8 +747,9 @@ type HostSoftwareTitleListOptions struct {
 	MinimumCVSS    float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS    float64 `query:"max_cvss_score,optional"`
 
-	// MacOSApplicationsOnly limits the returned software to apps installed at the
-	// top level of the macOS /Applications folder. Ignored for non-macOS hosts.
+	// MacOSApplicationsOnly limits the returned software to apps installed under
+	// the macOS /Applications folder, excluding apps nested in another app bundle
+	// and apps under /Applications/Utilities. Ignored for non-macOS hosts.
 	MacOSApplicationsOnly bool `query:"macos_applications,optional"`
 
 	Source       string `query:"source,optional"`
