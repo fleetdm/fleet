@@ -1,0 +1,2 @@
+- Fixed `fleetctl gitops` and `fleetctl apply` ignoring `configuration` on an App Store app with no `platform`. Fleet now applies it to the iOS and iPadOS apps.
+- `fleetctl gitops` and `fleetctl apply` now fail with a clear error when an App Store app has `configuration` and `platform: darwin` or an unsupported `platform`.
