@@ -97,8 +97,11 @@ func (svc Service) ResetPolicy(ctx context.Context, policyID uint, hostID *uint)
 		}
 		activityHostID = &host.ID
 		activityHostName = new(host.DisplayName())
-	} else if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset policy")
+	} else {
+		if err := svc.ds.ResetPolicy(ctx, policyID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset policy")
+		}
+		svc.TriggerPolicyMembershipCleanup(ctx)
 	}
 
 	var activityTeamID *int64
@@ -301,6 +304,7 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 		svc.authz.SkipAuthorization(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "check automation fields")
 	}
+
 	if req.TeamID != nil {
 		if !license.IsPremium(ctx) {
 			svc.authz.SkipAuthorization(ctx)
@@ -326,6 +330,7 @@ func (svc *Service) NewPolicy(ctx context.Context, req fleet.CreatePolicyRequest
 			PatchWhenClosed:              req.PatchWhenClosed,
 			NotifyBeforePatching:         req.NotifyBeforePatching,
 			PatchDeadline:                req.PatchDeadline,
+			ForcePatch:                   req.ForcePatch,
 			ProfileUUID:                  req.ProfileUUID,
 			AutomationType:               req.AutomationType,
 		})
@@ -373,7 +378,7 @@ func checkAllFleetsPolicyRequest(req fleet.CreatePolicyRequest) error {
 		{req.ProfileUUID != nil && *req.ProfileUUID != "", errPolicyAllFleetsForProfiles},
 		{req.SoftwareInstallerID != nil && *req.SoftwareInstallerID != 0, errPolicyAllFleetsForSoftwarePackage},
 		{req.ContinuousAutomationsEnabled, errPolicyAllFleetsForContinuousAutomations},
-		{req.PatchWhenClosed || req.NotifyBeforePatching || req.PatchDeadline, errPolicyAllFleetsForPatchOptions},
+		{req.PatchWhenClosed || req.NotifyBeforePatching || req.PatchDeadline || req.ForcePatch, errPolicyAllFleetsForPatchOptions},
 		{req.Type != nil && *req.Type == fleet.PolicyTypePatch,
 			`"All fleets" policy cannot be a patch policy`},
 	} {

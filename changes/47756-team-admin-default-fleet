@@ -1,0 +1,1 @@
+- Fixed fleet admins and maintainers with access to multiple fleets landing on the alphabetically first fleet instead of the lowest-ID fleet (or the "Workstations" fleet) by default.

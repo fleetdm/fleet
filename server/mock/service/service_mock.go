@@ -151,7 +151,7 @@ type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, tea
 
 type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
-type GetLabelSpecFunc func(ctx context.Context, name string) (*fleet.LabelSpec, error)
+type GetLabelSpecFunc func(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error)
 
 type NewLabelFunc func(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error)
 
@@ -679,6 +679,8 @@ type GetOTAProfileFunc func(ctx context.Context, enrollSecret string, idpSession
 
 type TriggerCronScheduleFunc func(ctx context.Context, name string) error
 
+type TriggerPolicyMembershipCleanupFunc func(ctx context.Context)
+
 type ResetAutomationFunc func(ctx context.Context, teamIDs []uint, policyIDs []uint) error
 
 type ProcessMDMMicrosoftDiscoveryFunc func(ctx context.Context, req *fleet.SoapRequest) (*fleet.SoapResponse, error)
@@ -797,7 +799,7 @@ type BatchScriptCancelFunc func(ctx context.Context, batchExecutionID string) er
 
 type LockHostFunc func(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 
-type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, err error)
+type UnlockHostFunc func(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error)
 
 type WipeHostFunc func(ctx context.Context, hostID uint) error
 
@@ -1987,6 +1989,9 @@ type Service struct {
 	TriggerCronScheduleFunc        TriggerCronScheduleFunc
 	TriggerCronScheduleFuncInvoked bool
 
+	TriggerPolicyMembershipCleanupFunc        TriggerPolicyMembershipCleanupFunc
+	TriggerPolicyMembershipCleanupFuncInvoked bool
+
 	ResetAutomationFunc        ResetAutomationFunc
 	ResetAutomationFuncInvoked bool
 
@@ -2925,11 +2930,11 @@ func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.Lab
 	return s.GetLabelSpecsFunc(ctx, teamID)
 }
 
-func (s *Service) GetLabelSpec(ctx context.Context, name string) (*fleet.LabelSpec, error) {
+func (s *Service) GetLabelSpec(ctx context.Context, name string, fleetID *uint) (*fleet.LabelSpec, error) {
 	s.mu.Lock()
 	s.GetLabelSpecFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetLabelSpecFunc(ctx, name)
+	return s.GetLabelSpecFunc(ctx, name, fleetID)
 }
 
 func (s *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (label *fleet.Label, hostIDs []uint, err error) {
@@ -4773,6 +4778,13 @@ func (s *Service) TriggerCronSchedule(ctx context.Context, name string) error {
 	return s.TriggerCronScheduleFunc(ctx, name)
 }
 
+func (s *Service) TriggerPolicyMembershipCleanup(ctx context.Context) {
+	s.mu.Lock()
+	s.TriggerPolicyMembershipCleanupFuncInvoked = true
+	s.mu.Unlock()
+	s.TriggerPolicyMembershipCleanupFunc(ctx)
+}
+
 func (s *Service) ResetAutomation(ctx context.Context, teamIDs []uint, policyIDs []uint) error {
 	s.mu.Lock()
 	s.ResetAutomationFuncInvoked = true
@@ -5186,7 +5198,7 @@ func (s *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlo
 	return s.LockHostFunc(ctx, hostID, viewPIN)
 }
 
-func (s *Service) UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error) {
+func (s *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	s.mu.Lock()
 	s.UnlockHostFuncInvoked = true
 	s.mu.Unlock()

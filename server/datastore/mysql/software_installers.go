@@ -1199,8 +1199,10 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 
 	var touchUploaded string
 	if payload.InstallerFile != nil {
-		// installer cannot be changed when associated with an FMA
-		touchUploaded = ", uploaded_at = NOW(6)"
+		// installer cannot be changed when associated with an FMA.
+		// The stored ETag described the URL's bytes, not the new file, so it can't
+		// be used for conditional downloads anymore.
+		touchUploaded = ", uploaded_at = NOW(6), http_etag = NULL"
 	}
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {

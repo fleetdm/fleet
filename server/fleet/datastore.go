@@ -256,6 +256,9 @@ type Datastore interface {
 	// manual membership is replaced with exactly those hosts.
 	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	DeleteLabel(ctx context.Context, id uint) error
+	// CleanupOrphanedLabelMembership deletes label_membership rows of labels that no longer exist: the ones an
+	// interrupted label deletion left behind, and the ones hosts reported after the label was deleted.
+	CleanupOrphanedLabelMembership(ctx context.Context) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	// LabelMembershipHostIDs returns every host_id row in label_membership for
@@ -1144,8 +1147,9 @@ type Datastore interface {
 	//
 	// It is also used to update team policies.
 	SavePolicy(ctx context.Context, p *Policy, shouldRemoveAllPolicyMemberships bool, removePolicyStats bool) error
-	// ResetPolicy clears pass/fail results: wipes policy_membership, policy_stats,
-	// and resets automation retry attempts, identical to a query-change side-effect.
+	// ResetPolicy clears pass/fail results: deletes policy_stats, resets automation retry attempts, and requests the
+	// removal of all policy_membership rows, which the policy_membership_cleanup schedule does. Identical to a
+	// query-change side-effect.
 	ResetPolicy(ctx context.Context, policyID uint) error
 	// ResetPolicyForHost clears a single host's pass/fail result for the policy and
 	// resets its automation retry attempts atomically, then refreshes the policy's counts
@@ -1284,7 +1288,10 @@ type Datastore interface {
 	DeleteTeamPolicies(ctx context.Context, teamID uint, ids []uint) ([]uint, error)
 	TeamPolicy(ctx context.Context, teamID uint, policyID uint) (*Policy, error)
 
+	// CleanupPolicyMembership removes the results of hosts that policies updated in the last 24 hours no longer target.
 	CleanupPolicyMembership(ctx context.Context, now time.Time) error
+	// CleanupPendingPolicyMembership runs the policy result cleanups that policy changes requested.
+	CleanupPendingPolicyMembership(ctx context.Context) error
 	// IsPolicyFailing checks if a policy is currently failing for a given host.
 	IsPolicyFailing(ctx context.Context, policyID, hostID uint) (bool, error)
 	// CountHostSoftwareInstallAttempts counts how many install attempts exist for a specific
@@ -1682,6 +1689,10 @@ type Datastore interface {
 	// Fleet and was previously orbit-enrolled (i.e. it has an orbit node key).
 	HostPreviouslyOrbitEnrolled(ctx context.Context, hostInfo OrbitHostInfo, isMDMEnabled bool) (bool, error)
 
+	// HostAgentEnrolled reports whether orbit or osquery has enrolled as the host, which then holds a node key on either plane.
+	// Security checks must pass a ctxdb.RequirePrimary context, since a replica can lag an enrollment.
+	HostAgentEnrolled(ctx context.Context, hostID uint) (bool, error)
+
 	// OtherMDMHostIDWithUUID returns the ID of a host other than excludeHostID that has the given UUID and an Apple or Windows
 	// MDM enrollment, or 0 if there is none.
 	OtherMDMHostIDWithUUID(ctx context.Context, uuid string, excludeHostID uint) (uint, error)
@@ -1890,6 +1901,10 @@ type Datastore interface {
 	// GetAppleSerialEnrolledUnderAnotherUUID returns the UUID of the host that's enrolled with the serial under a UUID
 	// other than uuid, or "" if there's none or the device with uuid has a host of its own.
 	GetAppleSerialEnrolledUnderAnotherUUID(ctx context.Context, serial, uuid string) (string, error)
+
+	// GetAppleAccountDrivenEnrollmentIDTaken reports whether a host other than the account-driven user enrollment's
+	// own would be matched by its enrollment ID.
+	GetAppleAccountDrivenEnrollmentIDTaken(ctx context.Context, enrollmentID string) (bool, error)
 
 	// GetHostMDMAppleEnrollmentPermissions returns the stored AccessRights for an
 	// Apple host. Returns a NotFound error when no row exists; callers that
@@ -2991,16 +3006,17 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM Profiles
 
-	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, using the same eligibility
-	// rules as the batched reconciler's host listing. Returns (nil, nil) when the host doesn't exist or isn't eligible.
+	// GetWindowsMDMHostForReconcile returns reconcile info for an eligible MDM-enrolled Windows host, selecting the same host row
+	// as the batched reconciler's host listing when several hosts share the UUID. Returns (nil, nil) when the host doesn't exist or
+	// isn't eligible.
 	GetWindowsMDMHostForReconcile(ctx context.Context, hostUUID string) (*WindowsHostReconcileInfo, error)
 
 	// ListWindowsProfilesForReconcileByTeam is the per-host variant of the reconcile snapshot's profile loader: it loads only
 	// profiles for the host's team (team_id=0 is its own "no team" scope).
 	ListWindowsProfilesForReconcileByTeam(ctx context.Context, teamID uint) ([]*WindowsProfileForReconcile, error)
 
-	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, grouped by
-	// host UUID.
+	// BulkGetHostMDMWindowsProfilesByUUIDs returns the current host_mdm_windows_profiles rows for the given host UUIDs, keyed by
+	// each UUID as given, whatever letter case the rows were stored with.
 	BulkGetHostMDMWindowsProfilesByUUIDs(ctx context.Context, hostUUIDs []string) (map[string][]*MDMWindowsProfilePayload, error)
 
 	// GetWindowsMDMProfilePriorContents returns the retained syncml for the given (profile_uuid, checksum) version keys.
@@ -4282,12 +4298,13 @@ type Datastore interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Challenges
 
-	// NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges table.
-	NewChallenge(ctx context.Context) (string, error)
-	// ConsumeChallenge checks if a valid challenge exists in the challenges table
-	// and deletes it if it does. The error will include sql.ErrNoRows if the challenge
-	// is not found or is expired.
-	ConsumeChallenge(ctx context.Context, challenge string) error
+	// NewChallenge generates a random, base64-encoded challenge for the given scope and inserts it into the challenges
+	// table.
+	NewChallenge(ctx context.Context, scope ChallengeScope) (string, error)
+	// ConsumeChallenge checks if a valid challenge exists in the challenges table for the given scope and deletes it if
+	// it does. The error will include sql.ErrNoRows if the challenge is not found, is expired, or was created for a
+	// different scope; in the last case the challenge is left in place.
+	ConsumeChallenge(ctx context.Context, challenge string, scope ChallengeScope) error
 	// CleanupExpiredChallenges removes expired challenges from the challenges table,
 	// intended to be run as a cron job.
 	CleanupExpiredChallenges(ctx context.Context) (int64, error)
@@ -4821,10 +4838,10 @@ type AndroidDatastore interface {
 	// cron to retire commands issued under an enterprise Fleet is no longer connected to.
 	FailPendingMDMAndroidCommandsOutsidePrefix(ctx context.Context, operationNamePrefix string, createdBefore time.Time, errorMessage string, limit int) (int64, error)
 
-	// LockHostViaAndroidMDM inserts the LOCK row into mdm_android_commands and writes the lock_ref on host_mdm_actions in a
-	// single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate cmd.CommandUUID and cmd.OperationName
-	// (returned by EnterprisesDevicesIssueCommand) before invoking.
-	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand) error
+	// LockHostViaAndroidMDM inserts the lock's RESET_PASSWORD row into mdm_android_commands and writes lock_ref and
+	// unlock_pin on host_mdm_actions in a single transaction, mirroring WipeHostViaWindowsMDM. The caller must populate
+	// cmd.CommandUUID and cmd.OperationName (returned by EnterprisesDevicesIssueCommand) before invoking.
+	LockHostViaAndroidMDM(ctx context.Context, host *Host, cmd *android.MDMAndroidCommand, unlockPIN string) error
 
 	// WipeHostViaAndroidMDM inserts the WIPE row into mdm_android_commands and writes the wipe_ref on host_mdm_actions in a
 	// single transaction. Used by COBO Wipe (which surfaces as PendingAction=wipe -> DeviceStatus=wiped) and by BYO Unenroll

@@ -28,12 +28,13 @@ env:
   AWS_IAM_ROLE: arn:aws:iam::917007347864:role/github-actions-role
   TF_ACTIONS_WORKING_DIR: infrastructure/loadtesting/terraform/shared
 
-permissions:
-  id-token: write
-  contents: read    # This is required for actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+permissions: {}
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write
     name: Deploy Fleet Loadtest Environment
     runs-on: ubuntu-latest
     continue-on-error: true

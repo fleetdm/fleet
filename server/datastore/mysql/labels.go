@@ -781,7 +781,7 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs 
 
 // DeleteLabel deletes a fleet.Label
 func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var name string
 		// Locked so that of two concurrent deletes of a label, only one succeeds.
 		if err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM labels WHERE id = ? FOR UPDATE`, labelID); err != nil {
@@ -811,8 +811,20 @@ func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	ds.deleteLabelMembership(ctx, []uint{labelID})
+	return nil
 }
 
+// labelMembershipDeleteBatchSize is a var so tests can exercise multiple batches. Tests that change it must not run
+// in parallel.
+var labelMembershipDeleteBatchSize = 5000
+
+// deleteLabelsInTx leaves the labels' label_membership rows in place: deleting them in tx would lock every member row
+// until commit and stall hosts' label result writes fleet-wide. Callers call deleteLabelMembership once tx
+// commits, not before, so a rolled-back deletion keeps its members.
 func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) error {
 	query, args, err := sqlx.In(`DELETE FROM labels WHERE id IN (?)`, labelIDs)
 	if err != nil {
@@ -821,16 +833,73 @@ func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) 
 	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "delete label")
 	}
-
-	query, args, err = sqlx.In(`DELETE FROM label_membership WHERE label_id IN (?)`, labelIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for label_membership")
-	}
-	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete label_membership")
-	}
-
 	return nil
+}
+
+// deleteLabelMembership runs in the background so the delete request doesn't wait on a large label's cleanup.
+// If the process exits first, CleanupOrphanedLabelMembership removes what's left.
+func (ds *Datastore) deleteLabelMembership(ctx context.Context, labelIDs []uint) {
+	ctx = context.WithoutCancel(ctx)
+	go func() {
+		if err := ds.deleteLabelMembershipInBatches(ctx, labelIDs); err != nil {
+			ds.logger.ErrorContext(ctx, "deleting membership of deleted labels", "label_ids", labelIDs, "err", err)
+			ctxerr.Handle(ctx, err)
+		}
+	}()
+}
+
+func (ds *Datastore) deleteLabelMembershipInBatches(ctx context.Context, labelIDs []uint) error {
+	db := ds.writer(ctx)
+	for _, labelID := range labelIDs {
+		var afterHostID uint
+		for {
+			var hostIDs []uint
+			// Pages are read from the primary: rows a lagging replica hasn't caught up on would be skipped and left
+			// for the next orphan cleanup. The host_id cursor seeks past deleted rows instead of rescanning them while purge
+			// catches up. The index is forced because for ORDER BY host_id the optimizer may walk the primary key
+			// (host_id, label_id) instead, scanning every host's labels to find this label's rows.
+			if err := sqlx.SelectContext(ctx, db, &hostIDs, `
+				SELECT host_id FROM label_membership FORCE INDEX (idx_lm_label_id)
+				WHERE label_id = ? AND host_id > ?
+				ORDER BY host_id
+				LIMIT ?`, labelID, afterHostID, labelMembershipDeleteBatchSize); err != nil {
+				return ctxerr.Wrapf(ctx, err, "select label_membership batch for label %d", labelID)
+			}
+			if len(hostIDs) == 0 {
+				break
+			}
+
+			stmt, args, err := sqlx.In(`DELETE FROM label_membership WHERE label_id = ? AND host_id IN (?)`, labelID, hostIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build label_membership batch delete")
+			}
+			// Retry to get past deadlocks with hosts' label result writes.
+			if err := common_mysql.WithRetryTxx(ctx, db, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, stmt, args...)
+				return err
+			}, ds.logger); err != nil {
+				return ctxerr.Wrapf(ctx, err, "delete label_membership batch for label %d", labelID)
+			}
+			afterHostID = hostIDs[len(hostIDs)-1]
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) CleanupOrphanedLabelMembership(ctx context.Context) error {
+	var labelIDs []uint
+	// NOT EXISTS rather than LEFT JOIN ... IS NULL: MySQL then skips through idx_lm_label_id one label at a time,
+	// where the join reads every membership row before deduplicating.
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelIDs, `
+		SELECT DISTINCT lm.label_id
+		FROM label_membership lm
+		WHERE NOT EXISTS (SELECT 1 FROM labels l WHERE l.id = lm.label_id)`); err != nil {
+		return ctxerr.Wrap(ctx, err, "select label ids of orphaned label_membership")
+	}
+	if len(labelIDs) == 0 {
+		return nil
+	}
+	return ds.deleteLabelMembershipInBatches(ctx, labelIDs)
 }
 
 // Label returns a fleet.LabelWithTeamName identified by lid if one exists and is accessible to the specified user.
@@ -895,13 +964,15 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 	query := "SELECT l.* FROM labels l "
 	// When applicable, filter host membership by team and return counts with the labels.
 	if filter.User != nil && includeHostCounts {
-		countFrom := "label_membership lm JOIN hosts h ON (lm.host_id = h.id)"
+		// Read label_membership by primary key, not idx_lm_label_id: hosts keep changing their label rows, and on recently
+		// changed secondary index pages MySQL checks each row against the primary key for visibility, which
+		// made the count several times slower while hosts check in.
+		countFrom := "label_membership lm FORCE INDEX (PRIMARY) JOIN hosts h ON (lm.host_id = h.id)"
 		// When the team filter allows all hosts ("TRUE"),
-		// skip the join to the hosts table and count straight off the
-		// label_membership index.
+		// skip the join to the hosts table and count straight off label_membership.
 		teamFilter := ds.whereFilterHostsByTeams(filter, "h")
 		if teamFilter == "TRUE" {
-			countFrom = "label_membership lm"
+			countFrom = "label_membership lm FORCE INDEX (PRIMARY)"
 		}
 		query = fmt.Sprintf(`
 				WITH label_host_counts AS (

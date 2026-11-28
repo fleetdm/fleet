@@ -1,0 +1,2 @@
+- Fixed the `mdm_bridge` table failing with `0x80070032` on some Windows hosts, such as Dell Pro Micro Plus models, so policies that use it had no result. fleetd now writes the EmbeddedMode `Flags` value that Windows expects on hosts whose SMBIOS table layout makes Windows miss the system UUID.
+- Fixed the `mdm_bridge` table failing with `0x8007139F` on Windows hosts where local MDM management wasn't registered yet.

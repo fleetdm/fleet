@@ -108,6 +108,7 @@ describe("DeployModal", () => {
         type: "patch",
         software_title_id: 10,
         automation_type: "software",
+        force_patch: false,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: true,
@@ -142,6 +143,7 @@ describe("DeployModal", () => {
         type: "patch",
         software_title_id: 10,
         automation_type: "software",
+        force_patch: false,
         patch_when_closed: false,
         notify_before_patching: true,
         patch_deadline: false,
@@ -184,6 +186,7 @@ describe("DeployModal", () => {
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
         automation_type: "software",
+        force_patch: false,
         patch_when_closed: false,
         notify_before_patching: true,
         patch_deadline: false,
@@ -340,6 +343,7 @@ describe("DeployModal", () => {
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
         automation_type: "software",
+        force_patch: false,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: true,
@@ -372,6 +376,7 @@ describe("DeployModal", () => {
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
         automation_type: null,
+        force_patch: false,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,
@@ -424,6 +429,7 @@ describe("DeployModal", () => {
 
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
+        force_patch: false,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,
@@ -457,6 +463,7 @@ describe("DeployModal", () => {
     await waitFor(() =>
       expect(policiesAPI.update).toHaveBeenCalledWith(22, {
         automation_type: "software",
+        force_patch: true,
         patch_when_closed: false,
         notify_before_patching: false,
         patch_deadline: false,

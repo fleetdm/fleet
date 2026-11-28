@@ -163,6 +163,9 @@ func run(ctx context.Context, cfg config, logger *log.Logger) (string, error) {
 	}
 	logger.Printf("transformed into %d modules, %d advisories", len(artifact.Modules), countAdvisories(artifact))
 
+	// Published with the database so a fix to a rule reaches servers without a Fleet release.
+	artifact.ToolchainInstalls = govulndb.PublishedToolchainInstalls()
+
 	var previous *govulndb.Artifact
 	if cfg.firstRun {
 		logger.Printf("first run: no previously published artifact to compare against; skipping the drop check")

@@ -1973,6 +1973,7 @@ WHERE
 	// one batch INSERT into nano_commands. Per-host, per-app build also drives
 	// $FLEET_VAR_* substitution against host context.
 	subHost := apple_mdm.AppConfigSubstitutionHost{
+		HostID:         hostID,
 		UUID:           hostData.UUID,
 		HardwareSerial: hostData.HardwareSerial,
 		Platform:       hostData.Platform,

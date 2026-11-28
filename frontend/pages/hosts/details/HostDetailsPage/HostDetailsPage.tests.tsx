@@ -9,10 +9,12 @@ import createMockConfig from "__mocks__/configMock";
 import createMockHost, {
   createMockGetHostSoftwareResponse,
 } from "__mocks__/hostMock";
+import createMockPolicy from "__mocks__/policyMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
 import { ActivityType } from "interfaces/activity";
 import { IHost } from "interfaces/host";
+import { IHostPolicy } from "interfaces/policy";
 import { IUser } from "interfaces/user";
 import activitiesAPI from "services/entities/activities";
 import commandAPI from "services/entities/command";
@@ -128,6 +130,9 @@ const renderHostDetails = (overrides?: {
   isWindowsMdmEnabledAndConfigured?: boolean;
   location?: typeof mockLocation;
   hostId?: string;
+  router?: ReturnType<typeof createMockRouter>;
+  filteredHostsPath?: string;
+  isPremiumTier?: boolean;
 }) => {
   const {
     currentUser = ADMIN,
@@ -136,6 +141,9 @@ const renderHostDetails = (overrides?: {
     isWindowsMdmEnabledAndConfigured = false,
     location = mockLocation,
     hostId = "1",
+    router = createMockRouter(),
+    filteredHostsPath = "",
+    isPremiumTier = true,
   } = overrides || {};
 
   const render = createCustomRenderer({
@@ -144,10 +152,11 @@ const renderHostDetails = (overrides?: {
       app: {
         currentUser,
         isGlobalAdmin,
-        isPremiumTier: true,
+        isPremiumTier,
         isMacMdmEnabledAndConfigured,
         isWindowsMdmEnabledAndConfigured,
         config: createMockConfig(),
+        filteredHostsPath,
       },
     },
   });
@@ -160,7 +169,7 @@ const renderHostDetails = (overrides?: {
   return render(
     <ErrorBoundary FallbackComponent={ErrorStatus}>
       <HostDetailsPage
-        router={createMockRouter()}
+        router={router}
         location={location}
         params={{ host_id: hostId }}
       />
@@ -776,6 +785,130 @@ describe("HostDetailsPage - reset", () => {
   });
 });
 
+describe("HostDetailsPage - activity card tab switch", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("refetches upcoming activity queries on Upcoming click and past activity queries on Past click so finished scripts and the Upcoming badge both refresh without a reload", async () => {
+    stubQueries(mockAppleHost());
+    const { user } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
+
+    await waitFor(() => {
+      expect(activitiesAPI.getHostPastActivities).toHaveBeenCalled();
+      expect(activitiesAPI.getHostUpcomingActivities).toHaveBeenCalled();
+      expect(commandAPI.getCommands).toHaveBeenCalled();
+    });
+    const pastCallsBefore = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    const upcomingCallsBefore = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
+      .mock.calls.length;
+
+    // Click Upcoming: upcoming queries refetch, past queries stay put.
+    await user.click(screen.getByRole("tab", { name: /upcoming/i }));
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(upcomingCallsBefore);
+    });
+    expect(
+      (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+    ).toBe(pastCallsBefore);
+
+    // Click Past: past queries refetch AND upcoming queries refetch for the
+    // always-visible badge (otherwise switching to Past would leave the
+    // Upcoming count stale).
+    const pastCallsBeforePast = (activitiesAPI.getHostPastActivities as jest.Mock)
+      .mock.calls.length;
+    const upcomingCallsBeforePast = (activitiesAPI.getHostUpcomingActivities as jest.Mock)
+      .mock.calls.length;
+    await user.click(screen.getByRole("tab", { name: /past/i }));
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(pastCallsBeforePast);
+      expect(
+        (activitiesAPI.getHostUpcomingActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(upcomingCallsBeforePast);
+    });
+  });
+
+  it("doesn't fire getCommands on a tab switch when the host can't take MDM commands (non-Apple), avoiding a 400 from the command_status filter", async () => {
+    stubQueries(mockWindowsHost());
+    const { user } = renderHostDetails({
+      isMacMdmEnabledAndConfigured: true,
+    });
+
+    await screen.findByText("Activity");
+    const commandsCallsBefore = (commandAPI.getCommands as jest.Mock).mock.calls
+      .length;
+
+    await user.click(await screen.findByRole("tab", { name: /upcoming/i }));
+    await user.click(await screen.findByRole("tab", { name: /past/i }));
+
+    // Wait for the past refetch to confirm the switch handler ran at least
+    // once, then assert no getCommands calls were fired by either switch.
+    await waitFor(() => {
+      expect(
+        (activitiesAPI.getHostPastActivities as jest.Mock).mock.calls.length
+      ).toBeGreaterThan(1);
+    });
+    expect((commandAPI.getCommands as jest.Mock).mock.calls.length).toBe(
+      commandsCallsBefore
+    );
+  });
+});
+
+describe("HostDetailsPage - delete host", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  const deleteHost = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByText("Actions"));
+    await user.click(await screen.findByText("Delete"));
+    await user.click(await screen.findByRole("button", { name: "Delete" }));
+    await waitFor(() => expect(hostAPI.destroy).toHaveBeenCalled());
+  };
+
+  it("returns to the fleet's host list the user came from", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.destroy as jest.Mock).mockResolvedValue({});
+    const router = createMockRouter({ push: jest.fn() });
+    const { user } = renderHostDetails({
+      router,
+      location: { ...mockLocation, query: { fleet_id: "3" } },
+    });
+
+    await deleteHost(user);
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith("/hosts/manage?fleet_id=3")
+    );
+  });
+
+  it("returns to the filtered host list the user came from", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.destroy as jest.Mock).mockResolvedValue({});
+    const router = createMockRouter({ push: jest.fn() });
+    const { user } = renderHostDetails({
+      router,
+      location: { ...mockLocation, query: { fleet_id: "3" } },
+      filteredHostsPath: "/hosts/manage?fleet_id=3&status=offline",
+    });
+
+    await deleteHost(user);
+
+    await waitFor(() =>
+      expect(router.push).toHaveBeenCalledWith(
+        "/hosts/manage?fleet_id=3&status=offline"
+      )
+    );
+  });
+});
+
 describe("HostDetailsPage - invalid host id", () => {
   afterEach(() => {
     jest.resetAllMocks();
@@ -790,6 +923,60 @@ describe("HostDetailsPage - invalid host id", () => {
 
       expect(await screen.findByText("error status 404")).toBeInTheDocument();
       expect(hostAPI.loadHostDetails).not.toHaveBeenCalled();
+    }
+  );
+});
+
+describe("HostDetailsPage - policy click", () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it.each<[string, number | null, number | null, boolean, number | undefined]>([
+    ["an inherited policy keeps the host's fleet", null, 2, true, 2],
+    [
+      "an inherited policy on an unassigned host keeps No fleet",
+      null,
+      null,
+      true,
+      0,
+    ],
+    ["a fleet policy opens in its own fleet", 2, 2, true, 2],
+    ["Free tier sends no fleet", null, null, false, undefined],
+  ])(
+    "opens the policy page with the host's name: %s",
+    async (_, policyFleetId, hostFleetId, isPremiumTier, expectedFleetId) => {
+      const hostPolicy: IHostPolicy = {
+        ...createMockPolicy({
+          id: 7,
+          name: "Disk encrypted",
+          fleet_id: policyFleetId,
+        }),
+        response: "fail",
+      };
+      stubQueries(
+        createMockHost({
+          fleet_id: hostFleetId,
+          display_name: "Workstation 1",
+          policies: [hostPolicy],
+        })
+      );
+      const router = createMockRouter({ push: jest.fn() });
+      const { user } = renderHostDetails({
+        router,
+        isPremiumTier,
+        location: { ...mockLocation, pathname: "/hosts/1/policies" },
+      });
+
+      await user.click(
+        await screen.findByRole("row", { name: /Disk encrypted/ })
+      );
+
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: "/policies/7",
+        query: { fleet_id: expectedFleetId },
+        state: { hostSearch: "Workstation 1" },
+      });
     }
   );
 });

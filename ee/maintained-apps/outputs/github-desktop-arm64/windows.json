@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.7.0",
+      "version": "3.7.1",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.7.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'GitHub Desktop' AND publisher = 'GitHub, Inc.' AND version_compare(version, '3.7.1') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'githubdesktop.exe');"
       },
-      "installer_url": "https://desktop.githubusercontent.com/releases/3.7.0-f13859b6/GitHubDesktopSetup-arm64.exe",
+      "installer_url": "https://desktop.githubusercontent.com/releases/3.7.1-534cde99/GitHubDesktopSetup-arm64.exe",
       "install_script_ref": "185a2a69",
       "uninstall_script_ref": "224130fc",
-      "sha256": "deb73d5f969091169c7504f0ab8e506dfcda5a09352d0b01d40256f66dd9594e",
+      "sha256": "fd77f5266eccb82fff8dc6de56f9efe844da77d86631cea42303d63cc9504ca8",
       "default_categories": [
         "Developer tools"
       ]

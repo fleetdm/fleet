@@ -14,6 +14,7 @@ fetches and history.json lists. The overview keeps no history: it reads the
 histories the other pages just wrote.
 """
 import argparse
+import copy
 import datetime as dt
 import html
 import json
@@ -2161,6 +2162,494 @@ def build_policies(snap, hist):
     }
 
 
+# ---------------------------------------------------------------- experience
+
+# The experience score rolls the other dashboards up into one score per computer.
+# The history keeps each computer's signals, not its score, one character per
+# signal per day: "0" to "9" and "a" to "z" for 0 to 35, "." when it didn't
+# report. The page scores them with the current settings, so a settings change
+# applies to every day it shows. A number signal stores min(cap, value // step);
+# a levels signal stores its level's index, worst first. Signals are matched by
+# ID across runs, so add new ones anywhere, and never reuse a retired ID.
+EXP_CODES = "0123456789abcdefghijklmnopqrstuvwxyz"
+EXP_CATEGORIES = [
+    ("performance", "Performance", "Whether the computer keeps up: memory pressure, restarts, and room on disk."),
+    ("device", "Device health", "Whether the hardware is up to the job: CPU age, memory, and battery."),
+    ("security", "Security", "Whether the computer is protected: encryption, OS updates, built-in protections, policies, and vulnerabilities."),
+    ("software", "Software", "Whether apps are current and stable."),
+    ("connectivity", "Connectivity", "The network under the computer."),
+]
+OFF_ON = [["off", "Off"], ["on", "On"]]
+EXP_SIGNALS = [
+    {"id": "strain", "cat": "performance", "label": "Memory pressure", "plats": ["macos"], "kind": "number",
+     "unit": "days", "step": 1, "cap": 7, "better": "lower",
+     "about": "Days in the last 7 with heavy swapping, from the Device health report, weighed by uptime as on Hardware lifecycle."},
+    {"id": "uptime", "cat": "performance", "label": "Days since restart", "plats": None, "kind": "number",
+     "unit": "days", "step": 1, "cap": 35, "better": "lower", "about": "Days since the computer last restarted, from Fleet."},
+    {"id": "disk_free", "cat": "performance", "label": "Free disk space", "plats": None, "kind": "number",
+     "unit": "%", "step": 2, "cap": 35, "better": "higher", "about": "Share of the disk that's free, from Fleet."},
+    {"id": "cpu_age", "cat": "device", "label": "CPU age", "plats": None, "kind": "number",
+     "unit": "years", "step": 1, "cap": 15, "better": "lower", "about": "Years since the CPU came out, as on Hardware lifecycle."},
+    {"id": "ram", "cat": "device", "label": "Memory (RAM)", "plats": None, "kind": "levels",
+     "levels": [["lt8", "Under 8 GB"], ["8", "8 to 15 GB"], ["16", "16 to 23 GB"], ["24", "24 to 31 GB"],
+                ["32", "32 to 63 GB"], ["64", "64 GB or more"]], "about": "Installed memory, from Fleet."},
+    {"id": "battery", "cat": "device", "label": "Battery health", "plats": None, "kind": "levels",
+     "levels": [["service", "Needs service"], ["worn", "Worn"], ["good", "Good"]],
+     "about": "Good is 80% or more of the battery's design capacity, worn is 60 to 79%, and needs service is less, or when the OS recommends service. Computers without a battery don't count."},
+    {"id": "disk_encryption", "cat": "security", "label": "Disk encryption", "plats": None, "kind": "levels",
+     "levels": OFF_ON, "about": "FileVault, BitLocker, or LUKS, from Fleet."},
+    {"id": "os_current", "cat": "security", "label": "OS up to date", "plats": None, "kind": "levels",
+     "levels": [["unsupported", "Release no longer updated"], ["behind", "Missing updates"],
+                ["older", "Patched, older release"], ["newest", "Newest"]],
+     "about": "Measured as on Patch velocity: against Apple's newest macOS, the latest update for each Windows release, and the newest point release of each Linux release in the fleet."},
+    {"id": "firewall", "cat": "security", "label": "Firewall", "plats": ["macos", "windows"], "kind": "levels",
+     "levels": OFF_ON, "about": "From the macOS Security posture and Windows firewall status reports."},
+    {"id": "gatekeeper", "cat": "security", "label": "Gatekeeper", "plats": ["macos"], "kind": "levels",
+     "levels": OFF_ON, "about": "From the macOS Security posture report."},
+    {"id": "sip", "cat": "security", "label": "System Integrity Protection", "plats": ["macos"], "kind": "levels",
+     "levels": OFF_ON, "about": "From the macOS Security posture report."},
+    {"id": "secure_boot", "cat": "security", "label": "Secure Boot", "plats": ["windows"], "kind": "levels",
+     "levels": OFF_ON, "about": "From the Secure Boot status report."},
+    {"id": "tpm", "cat": "security", "label": "TPM", "plats": ["windows"], "kind": "levels",
+     "levels": OFF_ON, "about": "Active TPM, from the TPM status report."},
+    {"id": "antivirus", "cat": "security", "label": "Antivirus", "plats": ["windows"], "kind": "levels",
+     "levels": OFF_ON, "about": "From Windows Security Center, in the firewall status report."},
+    {"id": "critical_policies", "cat": "security", "label": "Failing critical policies", "plats": None, "kind": "number",
+     "unit": "", "step": 1, "cap": 35, "better": "lower", "about": "Fleet policies marked critical that the computer fails."},
+    {"id": "policies", "cat": "security", "label": "Failing policies", "plats": None, "kind": "number",
+     "unit": "", "step": 1, "cap": 35, "better": "lower", "about": "Fleet policies the computer fails, critical or not."},
+    {"id": "vulns", "cat": "security", "label": "Critical vulnerabilities", "plats": None, "kind": "number",
+     "unit": "", "step": 1, "cap": 35, "better": "lower",
+     "about": "Software vulnerabilities on the computer rated critical (CVSS 9 or higher), from Fleet Premium."},
+    {"id": "ai_risk", "cat": "security", "label": "High-risk AI findings", "plats": None, "kind": "number",
+     "unit": "", "step": 1, "cap": 35, "better": "lower", "about": "High-risk findings on AI governance."},
+    {"id": "apps_behind", "cat": "software", "label": "Apps behind on updates", "plats": None, "kind": "number",
+     "unit": "", "step": 1, "cap": 35, "better": "lower",
+     "about": "Apps on Patch velocity, installed on 3 or more computers, that aren't on their newest version."},
+    {"id": "crashes", "cat": "software", "label": "Crash reports, last 30 days", "plats": ["macos"], "kind": "number",
+     "unit": "", "step": 1, "cap": 35, "better": "lower", "about": "Kernel panics and app crash reports, from the OS health report."},
+    {"id": "wifi", "cat": "connectivity", "label": "Wi-Fi signal", "plats": ["macos"], "kind": "levels",
+     "levels": [["unusable", "Unusable"], ["poor", "Poor"], ["fair", "Fair"], ["good", "Good"], ["excellent", "Excellent"]],
+     "about": "Signal strength, as on Connectivity. Macs on Ethernet don't count."},
+    {"id": "checkin", "cat": "connectivity", "label": "Last check-in", "plats": None, "kind": "number",
+     "unit": "days", "step": 1, "cap": 35, "better": "lower", "about": "Days since the computer last checked in with Fleet."},
+]
+EXP_BY_ID = {s["id"]: s for s in EXP_SIGNALS}
+
+# Fleet's starting point. Admins change it on the page, or with a JSON file in the
+# same shape (DEX_SCORING_FILE or run.py --scoring). Weights are relative within
+# their group. bands: [threshold, points] in order, the last threshold null for
+# everything else; "at most" for a lower-is-better signal, "at least" otherwise.
+# missing: "skip" leaves the signal out, "neutral" gives it the neutral points,
+# "worst" its lowest points. grades: [letter, lowest score], anything lower is F.
+DEFAULT_SCORING = {
+    "version": 1,
+    # US letter grades. Points are set so a computer that's fine but not ideal (16 GB,
+    # a restart in the last two weeks, a CPU up to 4 years old) still earns an A.
+    "grades": [["A", 90], ["B", 80], ["C", 70], ["D", 60]],
+    "target": 80,
+    "stale_days": 7,
+    "min_cohort": 3,
+    "host_views": True,
+    "categories": {
+        "performance": {"weight": 30, "signals": {
+            "strain": {"weight": 40, "bands": [[0, 100], [1, 90], [3, 65], [None, 35]]},
+            "uptime": {"weight": 35, "bands": [[7, 100], [14, 85], [30, 55], [None, 30]]},
+            "disk_free": {"weight": 25, "bands": [[20, 100], [10, 80], [6, 45], [None, 20]]}}},
+        "device": {"weight": 20, "signals": {
+            "cpu_age": {"weight": 40, "bands": [[2, 100], [4, 90], [6, 65], [None, 35]]},
+            "ram": {"weight": 35, "points": {"lt8": 30, "8": 60, "16": 90, "24": 95, "32": 100, "64": 100}},
+            "battery": {"weight": 25, "points": {"service": 30, "worn": 70, "good": 100}}}},
+        "security": {"weight": 30, "signals": {
+            "disk_encryption": {"weight": 25, "points": {"off": 0, "on": 100}},
+            # Missing an update is often a rollout in progress, not neglect.
+            "os_current": {"weight": 20, "points": {"unsupported": 10, "behind": 70, "older": 85, "newest": 100}},
+            "firewall": {"weight": 10, "points": {"off": 0, "on": 100}},
+            "gatekeeper": {"weight": 5, "points": {"off": 0, "on": 100}},
+            "sip": {"weight": 5, "points": {"off": 0, "on": 100}},
+            "secure_boot": {"weight": 5, "points": {"off": 0, "on": 100}},
+            "tpm": {"weight": 5, "points": {"off": 0, "on": 100}},
+            "antivirus": {"weight": 5, "points": {"off": 0, "on": 100}},
+            "critical_policies": {"weight": 10, "bands": [[0, 100], [None, 0]]},
+            "policies": {"weight": 5, "bands": [[0, 100], [1, 80], [3, 60], [6, 40], [None, 25]]},
+            # Most developer computers carry a few; the count still separates the worst.
+            "vulns": {"weight": 5, "bands": [[0, 100], [5, 85], [15, 70], [34, 55], [None, 40]]},
+            "ai_risk": {"weight": 0, "bands": [[0, 100], [1, 60], [None, 20]]}}},
+        "software": {"weight": 20, "signals": {
+            # Apps that update on their own often wait for a relaunch, so a few behind is normal.
+            "apps_behind": {"weight": 60, "bands": [[0, 100], [2, 90], [4, 80], [7, 65], [11, 50], [None, 35]]},
+            "crashes": {"weight": 40, "bands": [[0, 100], [1, 90], [4, 70], [9, 50], [None, 30]]}}},
+        "connectivity": {"weight": 0, "signals": {
+            "wifi": {"weight": 100, "points": {"unusable": 20, "poor": 50, "fair": 75, "good": 95, "excellent": 100}},
+            "checkin": {"weight": 0, "bands": [[1, 100], [7, 60], [None, 0]]}}},
+    },
+}
+# The signal history is capped at about this many characters, so it fits in two
+# part files: a year of days on a small fleet, about 54 days at 10,000 computers.
+EXP_MAX_CHARS = int(os.environ.get("DEX_EXP_CHARS") or 12_000_000)
+EXP_MIN_DAYS, EXP_MAX_DAYS = 35, 366
+SCORING_FILE = os.environ.get("DEX_SCORING_FILE") or ""
+EXP_FACT_APPS = 12
+
+
+def _is_num(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and v == v
+
+
+def scoring_config(user):
+    """The default settings with a saved or file copy's valid values on top. The page's
+    mergeScoring() does the same, so both score alike."""
+    cfg = copy.deepcopy(DEFAULT_SCORING)
+    if not isinstance(user, dict):
+        return cfg
+    for k, lo, hi in (("target", 0, 100), ("stale_days", 1, 35), ("min_cohort", 1, 100)):
+        if _is_num(user.get(k)):
+            cfg[k] = min(hi, max(lo, user[k]))
+    if isinstance(user.get("host_views"), bool):
+        cfg["host_views"] = user["host_views"]
+    grades = user.get("grades")
+    if (isinstance(grades, list) and grades and all(isinstance(g, list) and len(g) == 2 and isinstance(g[0], str)
+                                                    and g[0].strip() and _is_num(g[1]) for g in grades)):
+        cfg["grades"] = sorted(([g[0].strip()[:3], min(100, max(0, g[1]))] for g in grades), key=lambda g: -g[1])
+    ucats = user.get("categories") if isinstance(user.get("categories"), dict) else {}
+    for cid, cat in cfg["categories"].items():
+        uc = ucats.get(cid)
+        if not isinstance(uc, dict):
+            continue
+        if _is_num(uc.get("weight")):
+            cat["weight"] = max(0, uc["weight"])
+        usigs = uc.get("signals") if isinstance(uc.get("signals"), dict) else {}
+        for sid, sc in cat["signals"].items():
+            us = usigs.get(sid)
+            if not isinstance(us, dict):
+                continue
+            if _is_num(us.get("weight")):
+                sc["weight"] = max(0, us["weight"])
+            if us.get("missing") in ("skip", "neutral", "worst"):
+                sc["missing"] = us["missing"]
+            if _is_num(us.get("neutral")):
+                sc["neutral"] = min(100, max(0, us["neutral"]))
+            if "points" in sc and isinstance(us.get("points"), dict):
+                for k in sc["points"]:
+                    if _is_num(us["points"].get(k)):
+                        sc["points"][k] = min(100, max(0, us["points"][k]))
+            bands = us.get("bands")
+            if "bands" in sc and isinstance(bands, list) and bands and all(
+                    isinstance(b, list) and len(b) == 2 and (b[0] is None or _is_num(b[0])) and _is_num(b[1]) for b in bands):
+                lower = EXP_BY_ID[sid]["better"] == "lower"
+                ts = sorted((b for b in bands if b[0] is not None), key=lambda b: b[0] if lower else -b[0])
+                rest = next((b[1] for b in bands if b[0] is None), ts[-1][1] if ts else 0)
+                sc["bands"] = [[b[0], min(100, max(0, b[1]))] for b in ts] + [[None, min(100, max(0, rest))]]
+    return cfg
+
+
+def exp_code(sig, value):
+    if value is None:
+        return "."
+    if sig["kind"] == "levels":
+        keys = [k for k, _ in sig["levels"]]
+        return EXP_CODES[keys.index(value)] if value in keys else "."
+    return EXP_CODES[max(0, min(sig["cap"], int(value // sig["step"])))]
+
+
+def exp_scorer(cfg):
+    """score(block, platform) -> (composite or None, {category: score}) for one
+    computer-day. Same arithmetic, in the same order, as the page's scorer."""
+    plan = []
+    for cid, cat in cfg["categories"].items():
+        sigs = []
+        for sid, sc in cat["signals"].items():
+            sig = EXP_BY_ID.get(sid)
+            if not sig or sc["weight"] <= 0:
+                continue
+            if sig["kind"] == "levels":
+                pts = [float(sc["points"].get(k, 0)) for k, _ in sig["levels"]]
+            else:
+                pts = []
+                for code in range(sig["cap"] + 1):
+                    v = code * sig["step"]
+                    pts.append(float(next((p for t, p in sc["bands"]
+                                           if t is None or (v <= t if sig["better"] == "lower" else v >= t)), 0)))
+            vals = list(sc["points"].values()) if sig["kind"] == "levels" else [p for _, p in sc["bands"]]
+            missing = sc.get("missing", "skip")
+            miss = None if missing == "skip" else float(sc.get("neutral", 75)) if missing == "neutral" else float(min(vals))
+            sigs.append((EXP_INDEX[sid], sig["plats"], float(sc["weight"]), pts, miss))
+        plan.append((cid, float(cat["weight"]), sigs))
+    cache = {}
+
+    def score(block, plat):
+        key = (block, plat)
+        if key in cache:
+            return cache[key]
+        total = total_w = 0.0
+        cats = {}
+        for cid, cw, sigs in plan:
+            sw = sp = 0.0
+            for i, plats, w, pts, miss in sigs:
+                if plats and plat not in plats:
+                    continue
+                c = block[i]
+                if c == ".":
+                    if miss is None:
+                        continue
+                    p = miss
+                else:
+                    p = pts[min(len(pts) - 1, EXP_CODES.index(c))]
+                sw += w
+                sp += w * p
+            if sw > 0:
+                cats[cid] = sp / sw
+                if cw > 0:
+                    total += cw * cats[cid]
+                    total_w += cw
+        cache[key] = (total / total_w if total_w > 0 else None, cats)
+        return cache[key]
+    return score
+
+
+EXP_INDEX = {s["id"]: i for i, s in enumerate(EXP_SIGNALS)}
+
+
+def exp_os_state(t, v):
+    """(level, the version that counts as current for it) for one computer's OS, as on Patch velocity."""
+    if on_hotpatch(t, v):
+        return "newest", v
+    lines = t.get("lines")
+    if not lines:
+        return ("newest" if vcmp(v, t["newest"]) >= 0 else "behind"), t["newest"]
+    latest = lines.get(os_line(t["key"], v))
+    if not latest:
+        return "unsupported", None
+    if vcmp(v, latest) < 0:
+        return "behind", latest
+    if t.get("per_release") or vcmp(v, t["newest"]) >= 0:
+        return "newest", latest
+    return "older", latest
+
+
+def exp_ram(gb):
+    if not gb:
+        return None
+    return "lt8" if gb < 7.5 else "8" if gb < 15.5 else "16" if gb < 23.5 else "24" if gb < 31.5 else "32" if gb < 63.5 else "64"
+
+
+def exp_battery(m):
+    pct, score, fleet = m.get("battery_pct"), m.get("battery_score"), (m.get("battery_fleet") or "").lower()
+    if m.get("battery_service") or score == "replace":
+        return "service"
+    if pct is not None:
+        return "good" if pct >= 80 else "worn" if pct >= 60 else "service"
+    if score in ("good", "degraded"):
+        return "good" if score == "good" else "worn"
+    return "good" if fleet in ("normal", "good") else None
+
+
+def exp_os_cohort(plat, os_version):
+    if plat == "macos":
+        m = re.search(r"(\d+)", os_version or "")
+        return f"macOS {m.group(1)}" if m else "macOS"
+    if plat == "windows":
+        w = windows_os(os_version or "")
+        return w[0] if w else (os_version or "Windows")
+    lin = linux_os(os_version or "")
+    return lin[0] if lin else (os_version or "Linux")
+
+
+def build_experience(snap, hist, pages, page_hists, scoring=None, scoring_source="built-in"):
+    """One score per computer from the other dashboards' data, so build it after them.
+    pages: their page data from this run. page_hists: their histories, already updated."""
+    now = parse_ts(snap["generated_at"])
+    today = now.date()
+    D = today.isoformat()
+    hist.setdefault("schema", 1)
+    hist.setdefault("since", D)
+    cfg = scoring_config(scoring)
+    hosts = {str(h["id"]): h for h in snap["hosts"]}
+    details = snap.get("host_details") or {}
+    pinfo = snap.get("policies") or {}
+    os_health = snap.get("os_health") or {}
+    life = {str(m["id"]): m for m in pages["lifecycle"]["devices"]}
+    controls = {hid: r.get("c") or {} for hid, r in pages["analytics"]["hosts"].items()}
+    conn = {str(r["id"]): r for r in pages["connectivity"]["rows"]}
+    strain_hist = (page_hists.get("lifecycle") or {}).get("strain") or {}
+    week_ago = (today - dt.timedelta(days=7)).isoformat()
+
+    ai = pages["ai"]
+    sev = {f: r["sev"] for f, r in ai["risks"].items()}
+    ai_high, ai_labels = {}, {}
+    for hid, flag, *_ in ai["findings"]:
+        if sev.get(flag) == "high":
+            ai_high[str(hid)] = ai_high.get(str(hid), 0) + 1
+            ai_labels.setdefault(str(hid), set()).add(ai["risks"][flag]["label"])
+    ai_reported = {hid for hid, r in ai["hosts"].items() if r.get("r")}
+
+    os_state, behind, app_plats = {}, {}, set()
+    for t in pages["patch"]["titles"]:
+        if t["type"] == "os":
+            for hid, v, *_ in t["i"]:
+                level, target = exp_os_state(t, v)
+                os_state[str(hid)] = (level, v, target)
+        elif len(t["i"]) >= MIN_INSTALLS and t.get("newest"):
+            app_plats.add(t["p"])
+            for hid, v, *_ in t["i"]:
+                if vcmp(v, t["newest"]) < 0:
+                    behind.setdefault(str(hid), []).append([t["name"], v, t["newest"]])
+
+    def onoff(v):
+        return None if v is None else ("on" if v else "off")
+
+    blocks, facts = {}, {}
+    for hid, h in hosts.items():
+        plat = platform_of(h)
+        if not plat or is_virtual(h) or not is_active(h, now):
+            continue
+        m = life.get(hid) or {}
+        c = controls.get(hid) or {}
+        det = details.get(hid) or {}
+        seen = parse_ts(h.get("seen_time"))
+        up = (h["uptime"] / 1e9 / 86400) if h.get("uptime") else None
+        disk = h.get("percent_disk_space_available")
+        if not disk and not h.get("gigs_disk_space_available"):
+            disk = None
+        week = [v for d, v in (strain_hist.get(hid) or {}).items() if d > week_ago]
+        results = det.get("policies") or []
+        failing = [pid for pid, r in results if r == 0]
+        crash = os_health.get(hid) if plat == "macos" else None
+        crashes = num(crash.get("crashes_30d")) if crash and fresh_row(crash, now, 7) else None
+        os_level = os_state.get(hid)
+        values = {
+            "strain": sum(v[0] for v in week) if plat == "macos" and week else None,
+            "uptime": up,
+            "disk_free": disk,
+            "cpu_age": max(0, today.year - m["cpu_year"]) if m.get("cpu_year") else None,
+            "ram": exp_ram(m.get("ram")),
+            "battery": exp_battery(m),
+            "disk_encryption": onoff(h.get("disk_encryption_enabled")),
+            "os_current": os_level[0] if os_level else None,
+            "firewall": onoff(c.get("firewall")), "gatekeeper": onoff(c.get("gatekeeper")), "sip": onoff(c.get("sip")),
+            "secure_boot": onoff(c.get("secure_boot")), "tpm": onoff(c.get("tpm")), "antivirus": onoff(c.get("antivirus")),
+            "critical_policies": sum(1 for pid in failing if (pinfo.get(str(pid)) or {}).get("critical")) if results else None,
+            "policies": len(failing) if results else None,
+            "vulns": h.get("critical_vulns"),
+            "ai_risk": ai_high.get(hid, 0) if hid in ai_reported else None,
+            "apps_behind": len(behind.get(hid, [])) if plat in app_plats else None,
+            "crashes": crashes,
+            "wifi": (conn.get(hid) or {}).get("quality"),
+            "checkin": days_between(seen, now) if seen else None,
+        }
+        blocks[hid] = "".join(exp_code(s, values[s["id"]]) for s in EXP_SIGNALS)
+        w = conn.get(hid) or {}
+        f = {
+            "model": m.get("model"), "chip": m.get("chip"), "ram": m.get("ram"),
+            "os": [h.get("os_version") or "", os_level[2] if os_level else None],
+            "up": round(up, 1) if up is not None else None,
+            "disk": round(disk, 1) if _is_num(disk) else None, "gb": h.get("gigs_disk_space_available"),
+            "verdict": m.get("verdict"), "battery": m.get("battery_pct"), "cycles": m.get("battery_cycles"),
+            "warranty": m.get("warranty"), "seen": h.get("seen_time"),
+            "wifi": [w["rssi"], w["quality"]] if w.get("rssi") is not None else None,
+            "apps": sorted(behind.get(hid, []), key=lambda a: a[0].lower())[:EXP_FACT_APPS],
+            "apps_more": max(0, len(behind.get(hid, [])) - EXP_FACT_APPS),
+            "pol": failing, "ai": sorted(ai_labels.get(hid, [])), "crashes": crashes,
+        }
+        facts[hid] = {k: v for k, v in f.items() if v not in (None, [], "", 0)}
+
+    # Keep each computer's days aligned from one start date, matching stored signals by ID.
+    ids = [s["id"] for s in EXP_SIGNALS]
+    S = len(ids)
+    old_ids = hist.get("signals") or ids
+    codes = hist.get("codes") or {}
+    start = dt.date.fromisoformat(hist.get("start") or D)
+    if start > today:
+        start, codes = today, {}
+    if old_ids != ids:
+        pos = [old_ids.index(i) if i in old_ids else None for i in ids]
+        n_old = len(old_ids)
+        codes = {hid: "".join("".join(s[d * n_old + p] if p is not None else "." for p in pos)
+                              for d in range(len(s) // n_old)) for hid, s in codes.items()}
+    n_days = (today - start).days + 1
+    blank = "." * S
+    for hid in list(codes):
+        if hid not in hosts:
+            del codes[hid]
+    for hid in set(codes) | set(blocks):
+        s = codes.get(hid, "")[:(n_days - 1) * S]
+        s += blank * (n_days - 1 - len(s) // S)
+        codes[hid] = s + blocks.get(hid, blank)
+    window = min(EXP_MAX_DAYS, max(EXP_MIN_DAYS, EXP_MAX_CHARS // max(1, len(blocks) * S)))
+    if n_days > window:
+        drop = n_days - window
+        codes = {hid: s[drop * S:] for hid, s in codes.items()}
+        start += dt.timedelta(days=drop)
+        n_days = window
+    codes = {hid: s for hid, s in codes.items() if s.strip(".")}
+    hist.update(signals=ids, start=start.isoformat(), codes=codes)
+
+    # The overview's card reads the daily trend, scored with the build's settings. The
+    # days the signal history still holds are rescored each run, so they follow changes.
+    score = exp_scorer(cfg)
+    chk = EXP_INDEX["checkin"]
+    day_rows = {}
+    for hid, s in codes.items():
+        h = hosts[hid]
+        plat, fleet = platform_of(h), h.get("team_name") or "Unassigned"
+        for di in range(n_days):
+            block = s[di * S:(di + 1) * S]
+            if block == blank or (block[chk] != "." and EXP_CODES.index(block[chk]) > cfg["stale_days"]):
+                continue
+            comp, cats = score(block, plat)
+            if comp is None:
+                continue
+            d = (start + dt.timedelta(days=di)).isoformat()
+            count_into(day_rows.setdefault(d, {}), fleet, plat, scored=1, score10=round(comp * 10),
+                       good=int(comp >= cfg["target"]),
+                       **{f"c_{c}": round(v * 10) for c, v in cats.items()}, **{f"n_{c}": 1 for c in cats})
+    kept = {d: v for d, v in (hist.get("trend") or {}).items() if d < start.isoformat()}
+    hist["trend"] = trim_daily({**kept, **day_rows}, TREND_DAYS, today)
+    hist["grades"], hist["target"] = cfg["grades"], cfg["target"]
+    hist["weights"] = {c: cat["weight"] for c, cat in cfg["categories"].items()}
+
+    names = {"fleets": [], "models": [], "chips": [], "oses": [], "depts": []}
+    lookup = {k: {} for k in names}
+
+    def ix(kind, value):
+        value = value or ""
+        if value not in lookup[kind]:
+            lookup[kind][value] = len(names[kind])
+            names[kind].append(value)
+        return lookup[kind][value]
+
+    out_hosts = []
+    for hid in sorted(codes, key=int):
+        h, m = hosts[hid], life.get(hid) or {}
+        plat = platform_of(h)
+        out_hosts.append([int(hid), host_name(h), ix("fleets", h.get("team_name") or "Unassigned"), plat,
+                          ix("models", m.get("model") or h.get("hardware_model")), ix("chips", m.get("chip_family")),
+                          ix("oses", exp_os_cohort(plat, h.get("os_version"))),
+                          ix("depts", (details.get(hid) or {}).get("department")), codes[hid]])
+    used = {str(pid) for f in facts.values() for pid in f.get("pol", [])}
+    return {
+        "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"], "history_since": hist["since"],
+        "categories": [{"id": c, "label": label, "about": about} for c, label, about in EXP_CATEGORIES],
+        "signals": [{k: v for k, v in s.items() if v is not None} for s in EXP_SIGNALS],
+        "codes": EXP_CODES, "scoring": cfg, "scoring_source": scoring_source, "builtin": DEFAULT_SCORING,
+        "start": start.isoformat(), "days": n_days, "names": names, "hosts": out_hosts, "facts": facts,
+        "policy_names": {pid: [pinfo[pid]["name"], int(bool(pinfo[pid].get("critical")))] for pid in sorted(used) if pid in pinfo},
+        "reports": {"vulns": any(h.get("critical_vulns") is not None for h in snap["hosts"])},
+    }
+
+
+def load_scoring(path):
+    """Settings from a JSON file, or None when there's no file. A file that isn't valid
+    JSON stops the run, so a typo doesn't quietly reset everyone's scores."""
+    if not path or not os.path.exists(path) or os.path.getsize(path) == 0:
+        return None
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except ValueError as e:
+        sys.exit(f"FATAL: {path} isn't valid JSON: {e}")
+
+
 BUILDERS = {"lifecycle": build_lifecycle, "software": build_software, "patch": build_patch, "ai": build_ai,
             "connectivity": build_connectivity, "analytics": build_analytics,
             "sustainability": build_sustainability, "policies": build_policies}
@@ -2179,11 +2668,14 @@ OVERVIEW_FIELDS = {
     "analytics": ("computers", "all_fresh", "disk_known", "disk_on", "agent_current", "failing"),
     "sustainability": ("kwh", "co2", "sleep_off", "never_slept"),
     "policies": ("computers", "all_pass", "any_fail", "passed", "failed", "o_passed", "o_failed"),
+    "experience": ("scored", "score10", "good", *(f"{p}_{c}" for c, _, _ in EXP_CATEGORIES for p in ("c", "n"))),
 }
 
 
-# Order of the nav bar on every page: the overview, its cards, then Policies and Analytics.
-NAV_PAGES = ("overview", "ai", "connectivity", "lifecycle", "patch", "software", "sustainability", "policies", "analytics")
+# Order of the nav bar on every page: the overview, the experience score, the overview's
+# other cards, then Policies and Analytics.
+NAV_PAGES = ("overview", "experience", "ai", "connectivity", "lifecycle", "patch", "software", "sustainability",
+             "policies", "analytics")
 
 
 def nav_links(here, links, site=False):
@@ -2224,6 +2716,11 @@ def build_overview(snap, page_hists):
             rows.append([d, {k: v for k, v in keep.items() if v}])
         pages[page] = {"since": hist.get("since"), "fields": list(fields), "trend": rows,
                        **({"usage_since": hist["usage_since"]} if hist.get("usage_since") else {})}
+        if page == "experience":
+            cfg = scoring_config({"grades": hist.get("grades"), "target": hist.get("target")})
+            weights = hist.get("weights") or {c: cat["weight"] for c, cat in cfg["categories"].items()}
+            pages[page].update(grades=cfg["grades"], target=cfg["target"],
+                               categories=[[c, label, weights.get(c, 0)] for c, label, _ in EXP_CATEGORIES])
     hosts = {}
     for h in snap["hosts"]:
         plat = platform_of(h)
@@ -2265,12 +2762,14 @@ def write_page(out_dir, html_text, parts):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--page", required=True, choices=sorted(BUILDERS) + ["overview"])
+    ap.add_argument("--page", required=True, choices=sorted(BUILDERS) + ["experience", "overview"])
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--templates", required=True)
     ap.add_argument("--history", help="the page's history.json; leave out on the first run")
     ap.add_argument("--out", required=True, help="writes index.html, data/history.json, and any data parts here")
-    ap.add_argument("--page-history", action="append", default=[], help="overview only: page=path to that page's history.json")
+    ap.add_argument("--page-history", action="append", default=[],
+                    help="overview and experience: page=path to that page's history.json")
+    ap.add_argument("--scoring", help="experience only: a JSON file of scoring settings (default: DEX_SCORING_FILE)")
     ap.add_argument("--link", action="append", default=[], help="page=URL of that page's artifact")
     args = ap.parse_args()
     snap = load_json(args.snapshot, None)
@@ -2279,6 +2778,14 @@ def main():
     links = dict(x.split("=", 1) for x in args.link)
     if args.page == "overview":
         data = build_overview(snap, {p: load_history(path)[0] for p, path in (x.split("=", 1) for x in args.page_history)})
+    elif args.page == "experience":
+        # The score reads the other pages' data, so build them too, in memory.
+        hists = {p: load_history(path)[0] for p, path in (x.split("=", 1) for x in args.page_history)}
+        pages = {p: BUILDERS[p](snap, hists.setdefault(p, {})) for p in BUILDERS}
+        hist = load_history(args.history)[0] if args.history else {}
+        path = args.scoring or SCORING_FILE
+        scoring = load_scoring(path)
+        data = build_experience(snap, hist, pages, hists, scoring, "file" if scoring is not None else "built-in")
     else:
         hist = load_history(args.history)[0] if args.history else {}
         data = BUILDERS[args.page](snap, hist)

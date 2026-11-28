@@ -472,15 +472,17 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	// breaks version_compare ordering. When opted in, compare against the
 	// DisplayVersion so the patch policy flags outdated installs correctly.
 	patchVersion := out.Version
-	if input.UseDisplayVersionForPatch {
+	if input.UseDisplayVersionForPatch || input.UseDisplayVersionWhenListed {
 		displayVersion := firstDisplayVersion(selectedInstaller.AppsAndFeaturesEntries)
 		if displayVersion == "" {
 			displayVersion = firstDisplayVersion(m.AppsAndFeaturesEntries)
 		}
-		if displayVersion == "" {
+		switch {
+		case displayVersion != "":
+			patchVersion = displayVersion
+		case input.UseDisplayVersionForPatch:
 			return nil, ctxerr.New(ctx, "use_display_version_for_patch is set but no DisplayVersion found in winget manifest")
 		}
-		patchVersion = displayVersion
 	}
 
 	// create patch policy
@@ -498,8 +500,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, ctxerr.Wrap(ctx, err, "creating open query")
 	}
 	// These executables also ship inside other software (every Python build runs python.exe,
-	// Adobe Creative Cloud runs its own node.exe), so match only this app's install dir:
-	// another copy running shouldn't block its updates.
+	// Adobe Creative Cloud runs its own node.exe, Zoom Workplace runs zoom.exe), so match only
+	// this app's install dir: another copy running shouldn't block its updates.
 	switch input.Slug {
 	case "nodejs/windows", "nodejs-22/windows", "nodejs-24/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'node.exe' AND LOWER(path) LIKE '%\nodejs\node.exe');`
@@ -509,6 +511,8 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python313-arm64\%');`
 	case "python-3.14/windows":
 		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('python.exe','pythonw.exe') AND LOWER(path) LIKE '%\python314\%');`
+	case "zoom-vdi-universal-plugin/windows":
+		out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('zoom.exe','cpthost.exe','airhost.exe','aomhost64.exe') AND LOWER(path) LIKE '%\zoomvdiuniversalplugin\%');`
 	}
 
 	// arm64 builds can't run on x64 hosts, so their policies must pass there. The open
@@ -742,6 +746,11 @@ type inputApp struct {
 	// from the marketing version in a way that breaks version_compare ordering
 	// (e.g. python.org installers report "3.14.5150.0" for version "3.14.5").
 	UseDisplayVersionForPatch bool `json:"use_display_version_for_patch"`
+	// UseDisplayVersionWhenListed is UseDisplayVersionForPatch for apps whose registry
+	// version only sometimes differs: winget lists a DisplayVersion only when it
+	// differs from PackageVersion, so a manifest without one keeps PackageVersion.
+	// (MySQL Workbench's 26.10.0.1 hotfix registers 26.10.1.)
+	UseDisplayVersionWhenListed bool `json:"use_display_version_when_listed"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash bool `json:"ignore_hash"`
 	// IgnoreUpgradeCode leaves the MSI UpgradeCode out of the manifest, for apps that mint

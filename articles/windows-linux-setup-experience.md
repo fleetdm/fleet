@@ -98,9 +98,9 @@ A skipped install counts as a success. It shows as **Installed** on the end user
 
 For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure Fleet to stop setup and show a failure screen on the device when a setup-experience software install fails. Without this setting, Fleet lets the device continue past the Enrollment Status Page even if some installs fail, and the end user reaches the desktop with the failed install marked **Failed** in **My device**.
 
-To enable for a team:
+To enable for a fleet:
 
-1. Select the team you're configuring (or **No team**) from the team dropdown.
+1. Select the fleet you're configuring (or **Unassigned**) from the fleet dropdown.
 
 2. Go to **Controls** > **Setup experience** > **Install software**.
 
@@ -122,7 +122,7 @@ Profile failures alone do not trigger cancellation, even when **Cancel setup if 
 
 #### What end users see when setup is cancelled
 
-On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a minute after the failing install reports back to Fleet, then transitions to a failure screen with the configured error text and a **Reset device** button. A **Collect logs** button may also appear, but Windows does not always render it. **Reset device** wipes the device and re-enters OOBE; if the failing software is still configured for the team, the device will hit the same failure again on the next enrollment. Use the recovery procedure below to log into the device without wiping it.
+On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a minute after the failing install reports back to Fleet, then transitions to a failure screen with the configured error text and a **Reset device** button. A **Collect logs** button may also appear, but Windows does not always render it. **Reset device** wipes the device and re-enters OOBE; if the failing software is still configured for the fleet, the device will hit the same failure again on the next enrollment. Use the recovery procedure below to log into the device without wiping it.
 
 ### Add software
 
@@ -186,7 +186,7 @@ If the host can't set the new password, the managed account modal says the rotat
 password it received. The reason the host reported is on the failed rotation entry in **Host details** > **Activity**.
 
 Fleet does not try again on its own. The request is cleared and the automatic rotation timer is turned off, so nothing changes
-until someone presses **Rotate password** again. Fix the cause first: see [Troubleshoot the managed local account](#Troubleshoot the managed local account) for the
+until someone presses **Rotate password** again. Fix the cause first: see [Troubleshoot the managed local account](#troubleshoot-the-managed-local-account) for the
 failures a host can report.
 
 ### Sign in as the managed account

@@ -81,9 +81,7 @@ const UnlockModal = ({
 
     if (isIPadOrIPhone(platform)) {
       return (
-        <p>
-          This will disable Lost Mode. End users will be able to use the host.
-        </p>
+        <p>Unlock the host when it&apos;s returned to your organization.</p>
       );
     }
 

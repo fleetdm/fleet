@@ -23,6 +23,7 @@ module.exports = {
     success: { description: 'The device of an Android enterprise was successfully retrieved.' },
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    invalidResourceId: { description: 'A provided resource ID is not valid.', responseType: 'badRequest' },
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
     enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
     deviceNoLongerManaged: { description: 'The device is no longer managed by the Android enterprise.', responseType: 'notFound' },
@@ -57,6 +58,13 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    let resourceName = await sails.helpers.androidProxy.buildResourceName.with({
+      androidEnterpriseId,
+      segments: ['devices', deviceId],
+    }).intercept('invalidResourceId', ()=>{
+      return {'invalidResourceId': 'A provided resource ID is not valid.'};
+    });
+
 
     // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
     // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
@@ -74,7 +82,7 @@ module.exports = {
       if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'get_device'}; }
       sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
       let getDeviceResult = await androidManagementConnection.enterprises.devices.get({
-        name: `enterprises/${androidEnterpriseId}/devices/${deviceId}`,
+        name: resourceName,
       });
       return getDeviceResult.data;
     }).intercept({status: 429}, ()=>{

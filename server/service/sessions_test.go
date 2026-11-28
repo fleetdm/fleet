@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"log/slog"
+	"net"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -18,6 +22,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -925,4 +931,75 @@ func TestDecodeCallbackRequestRelayState(t *testing.T) {
 	t.Run("an absent RelayState decodes to empty", func(t *testing.T) {
 		require.Empty(t, postWith(t, url.Values{}))
 	})
+}
+
+func TestLoginDatastoreErrors(t *testing.T) {
+	dbErr := &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connect: connection refused")}
+
+	cases := []struct {
+		name        string
+		userByEmail error
+		newSession  error
+		badPassword bool
+		wantStatus  int
+	}{
+		{name: "user lookup db error", userByEmail: dbErr, wantStatus: http.StatusInternalServerError},
+		{name: "user not found", userByEmail: newNotFoundError(), wantStatus: http.StatusUnauthorized},
+		{name: "client canceled", userByEmail: context.Canceled, wantStatus: 499},
+		{name: "bad password", badPassword: true, wantStatus: http.StatusUnauthorized},
+		{name: "new session db error", newSession: dbErr, wantStatus: http.StatusInternalServerError},
+		{name: "success", wantStatus: http.StatusOK},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil)
+
+			user := &fleet.User{ID: 1, Email: "foo@example.com", GlobalRole: new(fleet.RoleObserver)}
+			require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+			ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+				if tc.userByEmail != nil {
+					return nil, tc.userByEmail
+				}
+				return user, nil
+			}
+			ds.NewSessionFunc = func(ctx context.Context, userID uint, sessionKeySize int) (*fleet.Session, error) {
+				if tc.newSession != nil {
+					return nil, tc.newSession
+				}
+				return &fleet.Session{UserID: userID, Key: "key"}, nil
+			}
+
+			password := test.GoodPassword
+			if tc.badPassword {
+				password = "wrong" + test.GoodPassword
+			}
+			_, _, err := svc.Login(ctx, user.Email, password, false)
+			if tc.wantStatus == http.StatusOK {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+
+			rec := httptest.NewRecorder()
+			var logs bytes.Buffer
+			encodeError(ctx, err, rec)
+			(&endpointer.ErrorHandler{Logger: slog.New(slog.NewTextHandler(&logs, nil))}).Handle(ctx, err)
+			assert.Equal(t, tc.wantStatus, rec.Code)
+			switch tc.wantStatus {
+			case http.StatusUnauthorized:
+				assert.Contains(t, rec.Body.String(), "Authentication failed")
+				return
+			case 499:
+				assert.Contains(t, rec.Body.String(), "Client Closed Request")
+				return
+			}
+			var jsonErr endpointer.JsonError
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &jsonErr))
+			assert.Equal(t, platform_http.GenericErrorMessage, jsonErr.Message)
+			assert.NotContains(t, rec.Body.String(), "connection refused")
+			assert.Contains(t, logs.String(), "connection refused")
+		})
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -88,6 +89,8 @@ type PolicyPayload struct {
 	NotifyBeforePatching bool
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool
+	// ForcePatch installs the patch even while the app is open.
+	ForcePatch bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -145,6 +148,8 @@ type NewTeamPolicyPayload struct {
 	NotifyBeforePatching bool
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool
+	// ForcePatch installs the patch even while the app is open.
+	ForcePatch bool
 }
 
 var (
@@ -166,7 +171,8 @@ var (
 	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
 	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
 	errPolicyPatchDeadlineRequiresPatch              = errors.New("\"patch_deadline\" is only supported for patch policies")
-	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
+	errPolicyForcePatchRequiresPatch                 = errors.New("\"force_patch\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"force_patch\", \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
 	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
 	ErrPolicyPatchDeadlineRequiresMacOS              = errors.New("\"patch_deadline\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
@@ -208,7 +214,10 @@ func (p PolicyPayload) Verify() error {
 	if p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
 	}
-	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+	if p.ForcePatch && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
+	}
+	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline, p.ForcePatch) {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	if p.Type == PolicyTypePatch {
@@ -450,6 +459,8 @@ type ModifyPolicyPayload struct {
 	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline *bool `json:"patch_deadline" premium:"true"`
+	// ForcePatch installs the patch even while the app is open.
+	ForcePatch *bool `json:"force_patch" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -462,6 +473,9 @@ func (p ModifyPolicyPayload) Verify() error {
 	}
 	if p.PatchDeadline != nil && *p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if ptr.ValOrZero(p.ForcePatch) && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
 	}
 	if p.Type == PolicyTypePatch {
 		if p.Name != nil {
@@ -574,6 +588,7 @@ type PolicyData struct {
 	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool `json:"patch_deadline" db:"patch_deadline"`
+	ForcePatch    bool `json:"force_patch" db:"-"`
 
 	UpdateCreateTimestamps
 }
@@ -891,6 +906,7 @@ type PolicySpec struct {
 	NotifyBeforePatching bool `json:"notify_before_patching"`
 	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
 	PatchDeadline bool `json:"patch_deadline"`
+	ForcePatch    bool `json:"force_patch"`
 
 	Type                   string `json:"type"`
 	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
@@ -970,7 +986,10 @@ func (p PolicySpec) Verify() error {
 	if p.PatchDeadline && p.Type != PolicyTypePatch {
 		return errPolicyPatchDeadlineRequiresPatch
 	}
-	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+	if p.ForcePatch && p.Type != PolicyTypePatch {
+		return errPolicyForcePatchRequiresPatch
+	}
+	if PatchOptionsConflict(p.ForcePatch, p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
 		return ErrPolicyPatchOptionsMutuallyExclusive
 	}
 	return p.VerifyLabelScopes()

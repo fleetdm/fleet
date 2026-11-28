@@ -122,6 +122,9 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
 			return nil, err
 		}
+		if err := svc.validateAppConfigCustomHostVitals(ctx, payload.Configuration); err != nil {
+			return nil, err
+		}
 	}
 
 	// persist changes starting here, now that we've done all the validation/diffing we can

@@ -31,6 +31,7 @@ import { TMatchedIcon } from "./MatchedIcon";
 import OnePassword from "./OnePassword";
 import Package from "./Package";
 import ZeroOneZeroEditor from "./png/010Editor.png";
+import ThreeDconnexion3DxWare10 from "./png/3Dconnexion3DxWare10.png";
 import ThreeDfZephyrFree from "./png/3DfZephyrFree.png";
 import SevenZip from "./png/7Zip.png";
 import EightXEightWork from "./png/8X8Work.png";
@@ -109,6 +110,7 @@ import Atext from "./png/Atext.png";
 import Audacity from "./png/Audacity.png";
 import AudioHijack from "./png/AudioHijack.png";
 import Audiveris from "./png/Audiveris.png";
+import AutoHotkey from "./png/AutoHotkey.png";
 import Autopsy from "./png/Autopsy.png";
 import AvastSecureBrowser from "./png/AvastSecureBrowser.png";
 import AviatrixVpnClient from "./png/AviatrixVpnClient.png";
@@ -128,6 +130,7 @@ import Badgeify from "./png/Badgeify.png";
 import BalenaEtcher from "./png/BalenaEtcher.png";
 import BalsamiqWireframes from "./png/BalsamiqWireframes.png";
 import BambuStudio from "./png/BambuStudio.png";
+import Bandicam from "./png/Bandicam.png";
 import Bandiview from "./png/Bandiview.png";
 import Bartender from "./png/Bartender.png";
 import Batfi from "./png/Batfi.png";
@@ -186,6 +189,8 @@ import Captain from "./png/Captain.png";
 import Capto from "./png/Capto.png";
 import CarbonCopyCloner from "./png/CarbonCopyCloner.png";
 import Cardhop from "./png/Cardhop.png";
+import CatoClient from "./png/CatoClient.png";
+import CatoEnterpriseBrowser from "./png/CatoEnterpriseBrowser.png";
 import Cavalry from "./png/Cavalry.png";
 import CertifyTheWeb from "./png/CertifyTheWeb.png";
 import Chalk from "./png/Chalk.png";
@@ -486,6 +491,7 @@ import HarmonySase from "./png/HarmonySase.png";
 import Hazel from "./png/Hazel.png";
 import Hazeover from "./png/Hazeover.png";
 import Heidisql from "./png/Heidisql.png";
+import Herdr from "./png/Herdr.png";
 import HexFiend from "./png/HexFiend.png";
 import HeyDesktop from "./png/HeyDesktop.png";
 import Hiddenbar from "./png/Hiddenbar.png";
@@ -496,6 +502,7 @@ import HiveApp from "./png/HiveApp.png";
 import HomeAssistant from "./png/HomeAssistant.png";
 import Homebrew from "./png/Homebrew.png";
 import Homerow from "./png/Homerow.png";
+import Hoppscotch from "./png/Hoppscotch.png";
 import Hot from "./png/Hot.png";
 import Houdahspot from "./png/Houdahspot.png";
 import HpEasyAdmin from "./png/HpEasyAdmin.png";
@@ -550,6 +557,7 @@ import Joplin from "./png/Joplin.png";
 import JordanbairdIce from "./png/JordanbairdIce.png";
 import JuliaApp from "./png/JuliaApp.png";
 import JumpDesktop from "./png/JumpDesktop.png";
+import K6 from "./png/K6.png";
 import Kaleidoscope from "./png/Kaleidoscope.png";
 import Kap from "./png/Kap.png";
 import Kdenlive from "./png/Kdenlive.png";
@@ -625,6 +633,7 @@ import Macwhisper from "./png/Macwhisper.png";
 import Maestral from "./png/Maestral.png";
 import Magicquit from "./png/Magicquit.png";
 import Mailspring from "./png/Mailspring.png";
+import MakeMeAdmin from "./png/MakeMeAdmin.png";
 import Malwarebytes from "./png/Malwarebytes.png";
 import ManagedSoftwareCenter from "./png/ManagedSoftwareCenter.png";
 import MarkedApp from "./png/MarkedApp.png";
@@ -802,6 +811,7 @@ import Popchar from "./png/Popchar.png";
 import Popclip from "./png/Popclip.png";
 import Popsql from "./png/Popsql.png";
 import Portfolioperformance from "./png/Portfolioperformance.png";
+import Positron from "./png/Positron.png";
 import PostgresApp from "./png/PostgresApp.png";
 import Postgresql15 from "./png/Postgresql15.png";
 import Postgresql16 from "./png/Postgresql16.png";
@@ -898,6 +908,7 @@ import RustDesk from "./png/RustDesk.png";
 import RustRover from "./png/RustRover.png";
 import Sabnzbd from "./png/Sabnzbd.png";
 import SafeExamBrowser from "./png/SafeExamBrowser.png";
+import SandboxiePlus from "./png/SandboxiePlus.png";
 import Sanesidebuttons from "./png/Sanesidebuttons.png";
 import Santa from "./png/Santa.png";
 import ScaleFt from "./png/ScaleFt.png";
@@ -1007,6 +1018,7 @@ import T3Code from "./png/T3Code.png";
 import Tabby from "./png/Tabby.png";
 import TableauDesktop from "./png/TableauDesktop.png";
 import TableauPrep from "./png/TableauPrep.png";
+import TableauReader from "./png/TableauReader.png";
 import TablePlus from "./png/TablePlus.png";
 import Tabtab from "./png/Tabtab.png";
 import Tailscale from "./png/Tailscale.png";
@@ -1039,6 +1051,7 @@ import TopazVideoAi from "./png/TopazVideoAi.png";
 import Topnotch from "./png/Topnotch.png";
 import TorBrowser from "./png/TorBrowser.png";
 import Tortoisegit from "./png/Tortoisegit.png";
+import Tortoisesvn from "./png/Tortoisesvn.png";
 import Tower from "./png/Tower.png";
 import Tradingview from "./png/Tradingview.png";
 import Transfer from "./png/Transfer.png";
@@ -1176,6 +1189,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "010 editor": ZeroOneZeroEditor,
   "1password": OnePassword,
   "3d slicer": Slicer,
+  "3dconnexion 3dxware 10": ThreeDconnexion3DxWare10,
   "3df zephyr free": ThreeDfZephyrFree,
   "4k slideshow maker": FourKSlideshowMaker,
   "4k stogram": FourKStogram,
@@ -1270,6 +1284,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   audacity: Audacity,
   "audio hijack": AudioHijack,
   audiveris: Audiveris,
+  autohotkey: AutoHotkey,
   autopsy: Autopsy,
   avast: AvastSecureBrowser,
   "aviatrix vpn client": AviatrixVpnClient,
@@ -1291,6 +1306,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   balenaetcher: BalenaEtcher,
   "balsamiq wireframes": BalsamiqWireframes,
   "bambu studio": BambuStudio,
+  bandicam: Bandicam,
   bandiview: Bandiview,
   bartender: Bartender,
   batfi: Batfi,
@@ -1352,6 +1368,9 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   capto: Capto,
   "carbon copy cloner": CarbonCopyCloner,
   cardhop: Cardhop,
+  "cato browser": CatoEnterpriseBrowser,
+  "cato client": CatoClient,
+  "cato enterprise browser": CatoEnterpriseBrowser,
   cavalry: Cavalry,
   "certify the web": CertifyTheWeb,
   chalk: Chalk,
@@ -1665,6 +1684,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   hazel: Hazel,
   hazeover: Hazeover,
   heidisql: Heidisql,
+  herdr: Herdr,
   "hex fiend": HexFiend,
   hey: HeyDesktop,
   "hidden bar": Hiddenbar,
@@ -1675,6 +1695,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "home assistant": HomeAssistant,
   homebrew: Homebrew,
   homerow: Homerow,
+  hoppscotch: Hoppscotch,
   hot: Hot,
   houdahspot: Houdahspot,
   "hp easy admin": HpEasyAdmin,
@@ -1731,6 +1752,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   joplin: Joplin,
   julia: JuliaApp,
   "jump desktop": JumpDesktop,
+  k6: K6,
   kaleidoscope: Kaleidoscope,
   kap: Kap,
   kdenlive: Kdenlive,
@@ -1806,6 +1828,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   maestral: Maestral,
   magicquit: Magicquit,
   mailspring: Mailspring,
+  "make me admin": MakeMeAdmin,
   "malwarebytes for mac": Malwarebytes,
   "managed software center": ManagedSoftwareCenter,
   marked: MarkedApp,
@@ -2000,6 +2023,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   popclip: Popclip,
   popsql: Popsql,
   "portfolio performance": Portfolioperformance,
+  positron: Positron,
   postgres: PostgresApp,
   "postgresql 15": Postgresql15,
   "postgresql 16": Postgresql16,
@@ -2100,6 +2124,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   sabnzbd: Sabnzbd,
   safari: Safari,
   "safe exam browser": SafeExamBrowser,
+  "sandboxie-plus": SandboxiePlus,
   sanesidebuttons: Sanesidebuttons,
   santa: Santa,
   "sbarex qlmarkdown": Qlmarkdown,
@@ -2212,6 +2237,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   tabby: Tabby,
   tableau: TableauDesktop,
   "tableau prep": TableauPrep,
+  "tableau reader": TableauReader,
   tableplus: TablePlus,
   tabtab: Tabtab,
   tailscale: Tailscale,
@@ -2247,6 +2273,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   topnotch: Topnotch,
   "tor browser": TorBrowser,
   tortoisegit: Tortoisegit,
+  tortoisesvn: Tortoisesvn,
   tower: Tower,
   "tradingview desktop": Tradingview,
   transfer: Transfer,
@@ -2371,6 +2398,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "zoom for government": Zoom,
   "zoom outlook plugin": ZoomOutlookPlugin,
   "zoom rooms": ZoomRooms,
+  "zoom vdi universal plugin": Zoom,
   zotero: Zotero,
   zulip: Zulip,
   zwift: Zwift,

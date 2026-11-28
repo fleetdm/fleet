@@ -44,6 +44,8 @@ function Warn { param([string]$Msg) Write-Host "  [WARN]  $Msg" -ForegroundColor
 function Fail { param([string]$Msg) Write-Host "  [FAIL]  $Msg" -ForegroundColor Red;    Add-Content -Path $Summary -Value "  [FAIL]  $Msg" }
 function Info { param([string]$Msg) Write-Host "  [INFO]  $Msg";                          Add-Content -Path $Summary -Value "  [INFO]  $Msg" }
 function Log  { param([string]$Msg) Write-Host $Msg;                                      Add-Content -Path $Summary -Value $Msg }
+# Detail lines go to summary.txt only, so the console shows just the status lines.
+function Detail { param([string]$Msg) Add-Content -Path $Summary -Value $Msg }
 
 $IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
 if (-not $IsAdmin) {
@@ -107,12 +109,18 @@ Log "-- 2. Processes ---------------------------------------------"
 
 function Check-Process {
   param([string]$Label, [string]$Name)
-  $Procs = Get-Process -Name $Name -ErrorAction SilentlyContinue
-  if ($Procs) {
+  # Only count processes running from the Orbit install: another osquery
+  # install must not make fleetd look healthy.
+  $All = @(Get-CimInstance Win32_Process -Filter "Name='$Name.exe'" -ErrorAction SilentlyContinue)
+  $Procs = @($All | Where-Object { $_.ExecutablePath -like "$OrbitRoot\*" })
+  foreach ($p in ($All | Where-Object { $_.ExecutablePath -notlike "$OrbitRoot\*" })) {
+    Warn "$Name.exe running from outside $OrbitRoot (another install?): PID $($p.ProcessId) $($p.ExecutablePath)"
+  }
+  if ($Procs.Count -gt 0) {
     Ok "$Label is running"
     foreach ($p in $Procs) {
-      $cmd = (Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)" -ErrorAction SilentlyContinue).CommandLine
-      Add-Content -Path $Summary -Value "    PID $($p.Id): $cmd"
+      # Path only: a manually started orbit.exe can carry --enroll-secret on its command line.
+      Add-Content -Path $Summary -Value "    PID $($p.ProcessId): $($p.ExecutablePath)"
     }
   } else {
     Fail "$Label is NOT running (process name: $Name)"
@@ -149,8 +157,13 @@ function Check-Path {
 
 Check-Path "Orbit root directory"  $OrbitRoot
 Check-Path "osquery pidfile"       (Join-Path $OrbitRoot 'osquery.pid')
-Check-Path "orbit node key"        (Join-Path $OrbitRoot 'secret-orbit-node-key.txt')
-Check-Path "enroll secret"         (Join-Path $OrbitRoot 'secret.txt')
+# Orbit moves the enroll secret into Credential Manager and deletes secret.txt
+# after enrolling, so its absence is normal on a healthy host.
+if (Test-Path -LiteralPath (Join-Path $OrbitRoot 'secret.txt')) {
+  Info "enroll secret still on disk (expected before first enrollment)"
+} else {
+  Info "enroll secret not on disk (expected after enrollment - stored in Credential Manager)"
+}
 
 $OrbitExe = Get-ChildItem -Path (Join-Path $OrbitRoot 'bin\orbit') -Filter 'orbit.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($OrbitExe) {
@@ -181,7 +194,8 @@ if (Test-Path -LiteralPath $RegPath) {
   Ok "Registry key found: $RegPath"
   Add-Content -Path $Summary -Value ($RegProps | Select-Object * -ExcludeProperty PS* | Out-String)
 } else {
-  Warn "Registry key not found: $RegPath"
+  # Not written by every installer version; healthy hosts can lack it.
+  Info "Registry key not found: $RegPath"
 }
 
 # ==============================================================================
@@ -192,7 +206,8 @@ Log "-- 4. Service configuration (redacted) ------------------------"
 if ($SvcCim -and $SvcCim.PathName) {
   # Redact anything that looks like a secret/token/key/password in the service args
   $Redacted = $SvcCim.PathName -replace '(?i)(--[\w-]*(?:secret|password|token|key)[\w-]*[= ])(?:"[^"]*"|\S+)', '$1<redacted>'
-  Log "    $Redacted"
+  Detail "    $Redacted"
+  Ok "Collected service configuration (redacted, in summary.txt)"
 } else {
   Fail "Could not read service ImagePath/arguments"
   $OverallExit = 1
@@ -200,9 +215,9 @@ if ($SvcCim -and $SvcCim.PathName) {
 # fleetd is configured through the service's per-service Environment (REG_MULTI_SZ) value
 $SvcEnv = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\Fleet osquery' -Name Environment -ErrorAction SilentlyContinue).Environment
 if ($SvcEnv) {
-  Log "    Environment:"
+  Detail "    Environment:"
   foreach ($Entry in $SvcEnv) {
-    Log ("      " + ($Entry -replace '(?i)^(ORBIT_(?!\w*_PATH=)\w*(?:SECRET|PASSWORD|TOKEN|KEY)\w*=).*', '$1<redacted>'))
+    Detail ("      " + ($Entry -replace '(?i)^(ORBIT_(?!\w*_PATH=)\w*(?:SECRET|PASSWORD|TOKEN|KEY)\w*=).*', '$1<redacted>'))
   }
 } else {
   Info "No per-service Environment value (legacy install configured via ImagePath arguments)"
@@ -216,13 +231,82 @@ Log "-- 5. Orbit version --------------------------------------------"
 if ($OrbitExe) {
   try {
     $OrbitVersion = & $OrbitExe.FullName version 2>&1 | Out-String
-    Info $OrbitVersion.Trim()
+    Info ($OrbitVersion.Trim() -split "`r?`n")[0]
     Add-Content -Path $Summary -Value $OrbitVersion
   } catch {
     Warn "Failed to run 'orbit.exe version': $_"
   }
 } else {
   Warn "orbit.exe not found - skipping version check"
+}
+
+# ==============================================================================
+# 5b. MDM ENROLLMENT AND FLEET CONNECTIVITY
+# ==============================================================================
+Log ""
+Log "-- 5b. MDM enrollment and Fleet connectivity --------------------"
+$MdmDir = Join-Path $WorkDir 'logs\mdm'
+New-Item -ItemType Directory -Path $MdmDir -Force | Out-Null
+
+& dsregcmd.exe /status 2>&1 | Out-File -FilePath (Join-Path $MdmDir 'dsregcmd_status.txt') -Encoding utf8
+$Enrollments = Get-ChildItem 'HKLM:\SOFTWARE\Microsoft\Enrollments' -ErrorAction SilentlyContinue |
+  ForEach-Object { Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue } |
+  # Built-in entries (Local/Cloud/Deploy Authority) have a ProviderID but no MDM server URL.
+  Where-Object { $_.DiscoveryServiceFullURL }
+if ($Enrollments) {
+  foreach ($e in $Enrollments) {
+    Info "MDM enrollment: ProviderID=$($e.ProviderID) URL=$($e.DiscoveryServiceFullURL) UPN=$($e.UPN)"
+  }
+} else {
+  Info "No MDM enrollment found (expected if Windows MDM is not turned on in Fleet)"
+}
+try {
+  Get-WinEvent -FilterHashtable @{ LogName = 'Microsoft-Windows-DeviceManagement-Enterprise-Diagnostics-Provider/Admin'; StartTime = $Since } -ErrorAction Stop |
+    Select-Object TimeCreated, Id, LevelDisplayName, Message |
+    Export-Csv -Path (Join-Path $MdmDir 'mdm_admin_events.csv') -NoTypeInformation -ErrorAction Stop
+  Ok "Collected MDM diagnostics events (last ${LookbackHours}h)"
+} catch {
+  if ($_.Exception.Message -notmatch 'No events were found') { Warn "Failed to query MDM diagnostics events: $_" }
+}
+
+# Fleet server reachability: --fleet-url (legacy) or ORBIT_FLEET_URL (env)
+$FleetUrl = $null
+if ($SvcCim.PathName -match '--fleet-url[= ]"?([^"\s]+)') { $FleetUrl = $Matches[1] }
+if (-not $FleetUrl -and $SvcEnv) {
+  $FleetUrl = ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_URL=*' } | Select-Object -First 1) -replace '^ORBIT_FLEET_URL=', ''
+}
+if ($FleetUrl) {
+  # Orbit adds https:// when the URL has no scheme; PowerShell would use http://.
+  if ($FleetUrl -notmatch '^https?://') { $FleetUrl = "https://$FleetUrl" }
+  # With a custom CA (fleet.pem) or insecure mode, orbit connects without the
+  # Windows trust store, so a TLS failure here doesn't mean orbit can't connect.
+  $TlsReason = $null
+  if (($SvcCim.PathName -match '--fleet-certificate') -or ($SvcEnv | Where-Object { $_ -like 'ORBIT_FLEET_CERTIFICATE=?*' })) {
+    $TlsReason = 'fleetd uses its own CA file (fleet.pem)'
+  } else {
+    # As orbit reads it: an explicit --insecure value wins over ORBIT_INSECURE,
+    # and true is 1, t or true in any case (Go's strconv.ParseBool).
+    $Insecure = [bool]($SvcEnv | Where-Object { $_ -match '^ORBIT_INSECURE=(1|t|true)$' })
+    if ($SvcCim.PathName -match '--insecure(?:="?(\w+)"?)?(?=\s|$)') {
+      $Insecure = (-not $Matches[1]) -or ($Matches[1] -match '^(1|t|true)$')
+    }
+    if ($Insecure) { $TlsReason = 'fleetd runs in insecure mode, so it does not verify the certificate' }
+  }
+  try {
+    $Resp = Invoke-WebRequest -Uri "$($FleetUrl.TrimEnd('/'))/healthz" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
+    Ok "Fleet server reachable: $FleetUrl (HTTP $($Resp.StatusCode) from /healthz)"
+  } catch {
+    if ($_.Exception.Response) {
+      Ok "Fleet server reachable: $FleetUrl (HTTP $([int]$_.Exception.Response.StatusCode) from /healthz)"
+    } elseif ($TlsReason -and $_.Exception.Message -match 'SSL|TLS|trust|certificate') {
+      Warn "Could not verify Fleet server ${FleetUrl} with the Windows trust store; ${TlsReason}: $($_.Exception.Message)"
+    } else {
+      Fail "Cannot reach Fleet server ${FleetUrl}: $($_.Exception.Message)"
+      $OverallExit = 1
+    }
+  }
+} else {
+  Warn "Fleet server URL not found in service config - skipped reachability check"
 }
 
 # ==============================================================================
@@ -276,11 +360,12 @@ if (-not $DesktopLogsFound) {
 $EventLogDir = Join-Path $WorkDir 'logs\event_log'
 New-Item -ItemType Directory -Path $EventLogDir -Force | Out-Null
 try {
-  $Matches = Get-WinEvent -FilterHashtable @{ LogName = 'System', 'Application'; StartTime = $Since } -ErrorAction SilentlyContinue |
+  # Not named $Matches: that's PowerShell's automatic variable for -match results.
+  $FleetEvents = Get-WinEvent -FilterHashtable @{ LogName = 'System', 'Application'; StartTime = $Since } -ErrorAction SilentlyContinue |
     Where-Object { $_.Message -match 'orbit|osquery|fleet' }
-  $Matches | Select-Object TimeCreated, LogName, ProviderName, Id, LevelDisplayName, Message |
+  $FleetEvents | Select-Object TimeCreated, LogName, ProviderName, Id, LevelDisplayName, Message |
     Export-Csv -Path (Join-Path $EventLogDir 'orbit_osquery_fleet_events.csv') -NoTypeInformation
-  Ok "Collected $(($Matches | Measure-Object).Count) System/Application event(s) mentioning orbit/osquery/fleet"
+  Ok "Collected $(($FleetEvents | Measure-Object).Count) System/Application event(s) mentioning orbit/osquery/fleet"
 } catch {
   Warn "Failed to query Windows Event Log: $_"
 }
@@ -325,7 +410,8 @@ try {
   $FailedServices = Get-CimInstance Win32_Service | Where-Object { $_.StartMode -eq 'Auto' -and $_.State -ne 'Running' }
   $FailedServices | Select-Object Name, DisplayName, State, StartMode | Export-Csv -Path (Join-Path $SystemEventsDir 'stopped_auto_services.csv') -NoTypeInformation
   if ($FailedServices) {
-    Warn "$($FailedServices.Count) Automatic-start service(s) not running:"
+    # Info, not Warn: trigger-start services are routinely stopped on healthy hosts.
+    Info "$(@($FailedServices).Count) Automatic-start service(s) not running (see stopped_auto_services.csv)"
     $FailedServices | ForEach-Object { Add-Content -Path $Summary -Value "    $($_.Name) ($($_.DisplayName)): $($_.State)" }
   } else {
     Ok "No Automatic-start services are stopped"
@@ -366,30 +452,25 @@ try {
 # ==============================================================================
 # All logging finishes before the work dir is zipped and removed below, so
 # summary.txt (and the final result) end up inside the archive too.
-Log ""
-Log "-- 8. Packaging archive ----------------------------------------"
-
 $ArchivePath = Join-Path $env:TEMP "$ArchiveName.zip"
 
-# ==============================================================================
-# FINAL RESULT
-# ==============================================================================
+Log ""
 Log "============================================================"
 if ($OverallExit -eq 0) {
   Log " Result: ALL CHECKS PASSED"
 } else {
-  Log " Result: ONE OR MORE CHECKS FAILED -- review summary above"
+  Log " Result: ONE OR MORE CHECKS FAILED -- details in summary.txt in the archive"
 }
-Log " Archive: $ArchivePath"
 Log "============================================================"
 
 try {
   Compress-Archive -Path (Join-Path $WorkDir '*') -DestinationPath $ArchivePath -Force -ErrorAction Stop
   Remove-Item -Path $WorkDir -Recurse -Force
-  Write-Host "  [INFO]  Archive created: $ArchivePath"
+  Write-Host " Archive: $ArchivePath"
+  Write-Host " Send this file to Fleet support."
 } catch {
   Write-Error "Failed to create archive: $_"
-  Write-Host "  [WARN]  Archive creation failed; diagnostic data retained at: $WorkDir"
+  Write-Host " Archive creation failed; diagnostic data retained at: $WorkDir"
   $OverallExit = 1
 }
 

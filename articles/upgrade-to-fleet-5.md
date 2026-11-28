@@ -39,7 +39,7 @@ Breaking changes are grouped by where you use Fleet. Read the sections that appl
 
 When you switch your scripts and integrations to the new endpoints, don't forget to update what's tied to the old ones, so your automation keeps running without interruption:
 
-- API-only user permissions: Give your [API-only users](https://fleetdm.com/guides/fleetctl#create-api-only-user) permission for the new endpoints in **Settings > Users**. Permissions for an old endpoint don't automatically cover the new endpoint.
+- API-only user permissions: Give your [API-only users](https://fleetdm.com/guides/fleetctl#create-api-only-user) permission for the new endpoints in **Settings > Users**. Permissions for an old endpoint don't automatically cover the new endpoint. The exceptions are [Delete report](#delete-report-by-name-removed), the [`hosts/identifier` endpoints](#other-endpoints-moved), and `GET /queries/run`. Fleet moves those permissions to the new endpoints when you upgrade.
 - Request size overrides: If you set [`server.endpoint_request_size_overrides`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-endpoint-request-size-overrides) for an old endpoint, add the same entry for its replacement.
 
 ### Farewell, teams
@@ -147,7 +147,7 @@ GitHub issue: [#52900](https://github.com/fleetdm/fleet/issues/52900)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `GET /global/schedule` and `GET /fleets/:id/schedule` | [`GET /reports`](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet. Scheduled reports have an `interval` greater than `0`. |
-| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, and `logging` (and `fleet_id` for a fleet). No copy. |
+| `POST /global/schedule` and `POST /fleets/:id/schedule`, which copied the report and scheduled the copy | [`POST /reports`](https://fleetdm.com/docs/rest-api/rest-api#create-report) with `interval`, `platform`, `min_osquery_version`, `logging`, and `automations_enabled` set to `true` (and `fleet_id` for a fleet). No copy. |
 | `PATCH /global/schedule/:id` and `PATCH /fleets/:id/schedule/:report_id` | [`PATCH /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#update-report) |
 | `DELETE /global/schedule/:id` and `DELETE /fleets/:id/schedule/:report_id` | [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id) |
 
@@ -158,7 +158,7 @@ The `/schedule`, `/team/:id/schedule`, and `/teams/:id/schedule` paths are also 
 Fleet 4 already supports reports with an `interval`, so change them before you upgrade.
 
 1. Search for the old paths: `grep -rnE '/schedule\b' .`
-2. Create or update reports with an `interval` instead. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
+2. Create or update reports with an `interval` instead. Set `automations_enabled` to `true`. The old schedule endpoints always did, but `POST /reports` defaults it to `false`, so results aren't sent to your log destination, and reports with `differential` or `differential_ignore_removals` logging don't run on hosts at all. To unschedule a report and keep it, [update the report](https://fleetdm.com/docs/rest-api/rest-api#update-report) with `interval` set to `0`.
 
 GitHub issue: [#54461](https://github.com/fleetdm/fleet/issues/54461)
 
@@ -257,6 +257,7 @@ Fleet 4 supports the new `scripts/batch` and `configuration_profiles/resend` pat
    - Fleet looks for a host ID first, then a serial number, UUID, and hostname. An all-digit identifier is used as a host ID if one exists, even if another host has that serial number. If no host has that ID, Fleet looks it up as a serial number, UUID, or hostname.
    - If more than one host matches an identifier, Fleet now returns the newest host instead of the oldest (the one with the lowest ID). This applies to `GET /hosts/:id`, the other `GET /hosts/:id/…` endpoints, `POST /hosts/:id/query`, and [Translate IDs](https://fleetdm.com/docs/rest-api/rest-api#translate-ids).
    - Every `GET /hosts/:id/…` endpoint accepts an identifier in `:id` too, except [Get host's device page URL](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-page-url).
+   - API-only users with permission for `GET /hosts/identifier/:identifier` or `POST /hosts/identifier/:identifier/query` get permission for `GET /hosts/:id` or `POST /hosts/:id/query` when you upgrade.
 3. After you upgrade, update conditional access setups that followed the Google or PingFederate guides to call `GET /hosts/:id`.
 
 GitHub issues: [#53080](https://github.com/fleetdm/fleet/issues/53080), [#58203](https://github.com/fleetdm/fleet/issues/58203)
@@ -522,17 +523,20 @@ Fleet 4 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
-### YAML-only lists removed from configuration responses
+### YAML-only lists removed from configuration and fleet settings
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) and [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet) | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
+| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.android_settings.configuration_profiles`, `macos_bootstrap_package`, `apple_setup_assistant`, and `macos_script` under `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and the other responses that include a fleet's settings | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
+| The same keys in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) requests | Removed. Requests that include them fail with a `400` error, except `mdm.setup_experience.macos_bootstrap_package` and `mdm.volume_purchasing_program`, which Fleet uses for that request only and doesn't save. Fleet only reads `macos_bootstrap_package` to check settings that need a bootstrap package, where an empty value means there's none. It doesn't upload or delete the package. To do that, use [Create bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) and [Delete bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package). |
 
 #### What to do
 
 Change these before you upgrade.
 
-These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+1. These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+2. Remove these keys from your Update configuration requests, and add or delete each item with its own endpoint instead, for example [Create configuration profile](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+3. Use fleetctl 5 with `fleetctl apply`. fleetctl 4 sends these keys to Fleet, so applying configuration or fleet files that list them fails.
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
@@ -641,16 +645,15 @@ GitHub issue: [#53801](https://github.com/fleetdm/fleet/issues/53801)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `DELETE /reports/:name` | Removed. Use [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). |
-| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). `DELETE /reports/id/:id` still works, but is deprecated. |
+| `DELETE /reports/id/:id` | Moved to [`DELETE /reports/:id`](https://fleetdm.com/docs/rest-api/rest-api#delete-report-by-id). `DELETE /reports/id/:id` returns a `410` error. |
 
 `DELETE /reports/:name` returns a `410` error, except when the name is only digits (for example `42`). Then Fleet 5 deletes the report with that ID. This includes `fleetctl delete` from Fleet 4.
 
 #### What to do
 
-Make these changes before you upgrade.
+In Fleet 4, `DELETE /reports/:name` deletes by name, so you can't switch to `DELETE /reports/:id` before you upgrade. Instead, after you upgrade, search for `DELETE /reports/` and delete reports with `DELETE /reports/:id`. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports.
 
-1. Delete reports with `DELETE /reports/id/:id`, which works in Fleet 4 and Fleet 5. Get a report's ID from [List reports](https://fleetdm.com/docs/rest-api/rest-api#list-reports), with `fleet_id` for a fleet's reports. After you upgrade, you can switch to `DELETE /reports/:id`.
-2. If an API-only user can only call "Delete report by name", give it "Delete report by ID" instead. If you don't, Fleet does this when you upgrade.
+API-only users with permission for "Delete report by name" or `DELETE /reports/id/:id` get the "Delete report by ID" permission when you upgrade.
 
 GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 
@@ -665,20 +668,6 @@ GitHub issue: [#53799](https://github.com/fleetdm/fleet/issues/53799)
 After you upgrade, use [Unlock host](https://fleetdm.com/docs/rest-api/rest-api#unlock-host) to get the PIN after you lock an Android host.
 
 GitHub issue: [#49909](https://github.com/fleetdm/fleet/issues/49909)
-
-### SCIM user delete requires an admin
-
-| Fleet 4 | Fleet 5 |
-|:--|:--|
-| `DELETE /scim/Users/:id` works with a maintainer's API token | [Delete SCIM user](https://fleetdm.com/docs/rest-api/rest-api#delete-scim-user) requires an admin's API token |
-
-#### What to do
-
-Change these before you upgrade.
-
-Use an admin's API token for your SCIM integration.
-
-GitHub issue: [#53472](https://github.com/fleetdm/fleet/issues/53472)
 
 ### GitOps users can't run MDM commands
 
@@ -1156,16 +1145,39 @@ GitHub issues: [#52905](https://github.com/fleetdm/fleet/issues/52905), [#53924]
 
 ### Omitted settings reset to defaults
 
+> **Important:** If you self-host Fleet and your YAML doesn't include `smtp_settings`, your first GitOps run with Fleet 5 deletes the SMTP settings and password stored in Fleet. Fleet stops sending email, and users who log in with multi-factor authentication (MFA) can't log in. Add `smtp_settings` to your YAML before you upgrade.
+
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| If your YAML leaves out `gitops`, `host_expiry_settings`, or `smtp_settings`, they keep their current values | They reset to their defaults ([`gitops`](https://fleetdm.com/docs/configuration/yaml-files#gitops), [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings), [`smtp_settings`](https://fleetdm.com/docs/configuration/yaml-files#smtp-settings)) |
+| If `org_settings` in `default.yml` leaves out [`gitops`](https://fleetdm.com/docs/configuration/yaml-files#gitops), [`smtp_settings`](https://fleetdm.com/docs/configuration/yaml-files#smtp-settings), [`host_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#host-expiry-settings), [`activity_expiry_settings`](https://fleetdm.com/docs/configuration/yaml-files#activity-expiry-settings), or [`fleet_desktop`](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop), they keep their current values | They reset to their defaults |
+| If [`server_settings`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) leaves out any key other than `server_url`, the key keeps its current value | It resets to its default |
+| If [`org_info`](https://fleetdm.com/docs/configuration/yaml-files#org-info) leaves out `contact_url` or the logo URLs, they keep their current values | They reset to their defaults |
+| If [`webhook_settings`](https://fleetdm.com/docs/configuration/yaml-files#webhook-settings) leaves out a webhook, the webhook turns off but keeps its `destination_url` and other values | The webhook turns off and its values reset to their defaults |
+| If a fleet's YAML leaves out `settings.host_expiry_settings`, the fleet keeps its current value | It resets to its default |
+| `password: ""` under `smtp_settings` deletes the SMTP password | A blank `password` keeps the current SMTP password. To delete it, leave out `smtp_settings`. |
+| You can change the SMTP `server`, `port`, `user_name`, or `authentication_type` without setting `password`, in YAML or with [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Changing any of them requires `password` in the same change. Otherwise, the GitOps run or API request fails. |
+
+A setting that's left blank (for example, `smtp_settings:` with nothing after it) resets the same way as one that's left out.
+
+These resets have the biggest impact:
+
+- `smtp_settings`: Fleet stops sending user invite, password reset, and multi-factor authentication (MFA) emails, and deletes the SMTP password. Users who log in with MFA can't log in until SMTP is set up again. This doesn't apply if you use Fleet's managed-cloud offering.
+- `gitops`: GitOps mode turns off, so settings can be edited in the Fleet UI again.
+- `server_settings`: `report_cap` resets to `1000`, and Fleet deletes stored report results above the cap. `ai_features_disabled`, `mcp_disabled`, `live_reporting_disabled`, and `discard_reports_data` reset to `false`, which turns those features back on. `enable_analytics` resets to `true`.
+- `fleet_desktop`: `alternative_browser_host` is removed.
 
 #### What to do
 
-Change these before you upgrade.
+Fleet 4 already supports these settings in YAML, so change this before you upgrade.
 
 1. To get the current values, run `fleetctl generate-gitops`.
-2. Add these settings to your YAML with the values you use today.
+   - If the output doesn't include `gitops` or `smtp_settings`, get them from `fleetctl get config`.
+2. Add any settings your YAML leaves out, with the values you use today.
+   - Fleet never returns the SMTP password. Leave `password` out of `smtp_settings` to keep the current one, or set it from a secret in your CI/CD.
+   - In Fleet 5, set `password` whenever you change the SMTP `server`, `port`, `user_name`, or `authentication_type`.
+3. After you upgrade, run `fleetctl gitops --dry-run`.
+   - If the run would reset `smtp_settings`, `gitops`, or `server_settings` values, the output lists them in a line like: `[!] would've set org_settings.smtp_settings to defaults because not defined in YAML: enable_smtp, password, server`
+   - Other settings reset without a warning.
 
 GitHub issue: [#53899](https://github.com/fleetdm/fleet/issues/53899)
 
@@ -1232,6 +1244,18 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
    - See [Variables](https://fleetdm.com/guides/fleet-variables).
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
+
+### YAML-only lists under a fleet's settings.mdm
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `custom_settings` or `configuration_profiles` under `settings.mdm.apple_settings`, `settings.mdm.windows_settings`, or `settings.mdm.android_settings`, and `macos_bootstrap_package`, `apple_setup_assistant`, or `macos_script` under `settings.mdm.setup_experience`, in a fleet's YAML file | GitOps runs fail with an `unknown key` error |
+
+#### What to do
+
+Before you upgrade, remove these keys from `settings.mdm` in your fleets' YAML files. Configuration profiles and setup experience items belong under [`controls`](https://fleetdm.com/docs/configuration/yaml-files#controls).
+
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
 ## fleetctl
 
@@ -1334,6 +1358,18 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 Update scripts that parse the output of `fleetctl get config` to read the new names. Files you pass to `fleetctl apply` need the new names too.
 
 GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
+
+### get config and get fleets don't print YAML-only lists
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `fleetctl get config` and `fleetctl get fleets` print the configuration profiles, scripts, bootstrap package, setup assistant, setup experience script, and VPP assignments applied with YAML | They don't print them |
+
+#### What to do
+
+Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output to use each feature's list endpoint instead. See [YAML-only lists removed from configuration and fleet settings](#yaml-only-lists-removed-from-configuration-and-fleet-settings).
+
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
 ### get software output changed
 
@@ -1613,11 +1649,15 @@ GitHub issue: [#53926](https://github.com/fleetdm/fleet/issues/53926)
 
 1. Add the new names to EDR, monitoring, and firewall rules.
    - Keep the old names until every host runs the new fleetd.
+   - On Linux, update checks that match the process name `orbit`, like `pgrep -x orbit` or `processes.name = 'orbit'`. The Fleet server's process is also named `fleet`, so on a host that runs both, match the path `/opt/orbit/bin/orbit/orbit` instead.
 2. Update policies and scripts that match "Fleet osquery" in the `programs` table so they match "Fleet" too, including copies of Fleet's Windows uninstall script.
+   - Match "Fleet" only with the publisher "Fleet Device Management (fleetdm.com)". Other apps, like JetBrains Fleet, are also named "Fleet".
    - Repairing fleetd from the installer brings "Fleet osquery" back until fleetd renames it again.
    - On upgraded Fleet servers, the Software page keeps listing it as "Fleet osquery". New Fleet 5 servers list "Fleet".
 
-GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
+On macOS, the process name changes in a later release. You can get ready now by adding the new path, `/opt/orbit/bin/orbit/macos/stable/Fleet`, to your Full Disk Access profile. If you're using a custom channel such as `edge`, you need to set the path as `/opt/orbit/bin/orbit/macos/<channel>/Fleet`. Fleet's [sample profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/allow-fleetd-full-disk-access.mobileconfig) lists both the old and new paths, so you can deploy it before the change. fleetd only switches to the new name once your profile allows the new path, so it keeps Full Disk Access.
+
+GitHub issues: [#56803](https://github.com/fleetdm/fleet/issues/56803), [#59166](https://github.com/fleetdm/fleet/issues/59166)
 
 ### Older fleetd can't find the organization logo
 
@@ -1630,6 +1670,18 @@ GitHub issue: [#56803](https://github.com/fleetdm/fleet/issues/56803)
 Update fleetd to 1.56.2 or later before you upgrade to Fleet 5.
 
 GitHub issue: [#52800](https://github.com/fleetdm/fleet/issues/52800)
+
+### Kolide launcher support removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| Hosts could connect to Fleet with [Kolide's launcher](https://github.com/kolide/launcher) agent over gRPC | Removed. Hosts running launcher can't enroll, get config, run reports, or send results. |
+
+#### What to do
+
+If any hosts connect to Fleet with launcher, replace it with [fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) before you upgrade.
+
+GitHub pull request: [#59895](https://github.com/fleetdm/fleet/pull/59895)
 
 
 ## Fleet UI

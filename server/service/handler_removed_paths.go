@@ -46,6 +46,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
 	"/api/_version_/fleet/abm",
 	"/api/_version_/fleet/abm_tokens",
+	"/api/_version_/fleet/abm_tokens/count",
 	"/api/_version_/fleet/abm_tokens/{id}",
 	"/api/_version_/fleet/abm_tokens/{id}/renew",
 	"/api/_version_/fleet/ab_tokens/{id}/teams",
@@ -75,6 +76,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/hosts/{id}/queries",
 	"/api/_version_/fleet/hosts/{id}/queries/{report_id}",
 	"/api/_version_/fleet/reports/id/{id}",
+	"/api/_version_/fleet/reports/{name}",
 	"/api/_version_/fleet/reports/run_by_names",
 	"/api/_version_/fleet/packs",
 	"/api/_version_/fleet/packs/schedule",
@@ -139,6 +141,12 @@ var removedPathTemplates = []string{
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
 var removedPathOverlaps = map[string]endpointer.RemovedPathOverlap{
+	// Wildcards the fleet segment rather than reports, so the wildcard only catches DELETE requests under /reports and wrong-method
+	// requests to other /fleet/x/y routes keep their 405.
+	"/api/_version_/fleet/reports/{name}": {
+		Method:        http.MethodDelete,
+		RouteTemplate: "/api/_version_/{fleet_segment}/reports/{name}",
+	},
 	"/api/_version_/fleet/packs/{id}/scheduled": {
 		Method:        http.MethodGet,
 		RouteTemplate: "/api/_version_/fleet/packs/{pack_id}/{scheduled_segment}",

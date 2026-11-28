@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "rc-major-*"
       - "rc-minor-*"
       - "rc-patch-*"
     paths-ignore:
@@ -27,11 +28,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   publish:
+    permissions:
+      contents: read
     # Only run it when the push is to the fleetdm/fleet repo. Otherwise the secrets for pushing to
     # Docker will not be available.
     #
@@ -119,7 +121,7 @@ jobs:
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Check high/critical vulnerabilities before publishing (trivy)
         # Only run this when tagging RCs.
-        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')
+        if: startsWith(github.ref, 'rc-major-') || startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -146,7 +148,7 @@ jobs:
 
       - name: Check high/critical vulnerabilities before publishing (docker scout)
         # Only run this when tagging RCs.
-        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')
+        if: startsWith(github.ref, 'rc-major-') || startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')
         uses: docker/scout-action@381b657c498a4d287752e7f2cfb2b41823f566d9 # v1.17.1
         with:
           command: cves
@@ -184,7 +186,7 @@ jobs:
 
       - name: Extract CVE list for Slack notification
         id: extract_cves
-        if: (startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')) && failure()
+        if: (startsWith(github.ref, 'rc-major-') || startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')) && failure()
         run: |
           if [ -f trivy-results.json ]; then
             # `safe` JSON-escapes string fields so they can be embedded inline in
@@ -209,7 +211,7 @@ jobs:
           echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
 
       - name: Slack notification
-        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') && failure()
+        if: startsWith(github.ref, 'rc-major-') || startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') && failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |

@@ -98,6 +98,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 			if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
 				return nil, err
 			}
+			if err := svc.validateAppConfigCustomHostVitals(ctx, payload.Configuration); err != nil {
+				return nil, err
+			}
 		}
 	} else {
 		payload.Configuration = nil
@@ -882,6 +885,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
 			}
+			// The new version's patch policy query clears the policy's results.
+			svc.TriggerPolicyMembershipCleanup(ctx)
 
 			// the pinned version is now the active installer; return it, not the one we pinned away from
 			payload.InstallerID = activeInstallerID
@@ -2010,6 +2015,7 @@ func (svc *Service) precheckAppConfigResolvable(ctx context.Context, host *fleet
 		return nil
 	}
 	_, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, svc.ds, cfg, apple_mdm.AppConfigSubstitutionHost{
+		HostID:         host.ID,
 		UUID:           host.UUID,
 		HardwareSerial: host.HardwareSerial,
 		Platform:       host.Platform,
@@ -3046,6 +3052,7 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var allScripts []string
+	var allConfigurations []string
 
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
@@ -3093,6 +3100,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			payload.ValidatedLabels = validatedLabels
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+		if len(payload.Configuration) > 0 {
+			allConfigurations = append(allConfigurations, string(payload.Configuration))
+		}
 
 		// static check, so unlike the secrets validation below it also runs on
 		// gitops dry runs
@@ -3121,6 +3131,12 @@ func (svc *Service) BatchSetSoftwareInstallers(
 				return "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
 			}
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, allConfigurations); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals in configurations")
+			}
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("configuration", err.Error()))
 		}
 	}
 

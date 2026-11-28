@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2026.5",
+      "version": "2026.6",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Mullvad VPN %' AND publisher = 'Mullvad VPN';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mullvad VPN %' AND publisher = 'Mullvad VPN' AND version_compare(version, '2026.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mullvad VPN %' AND publisher = 'Mullvad VPN' AND version_compare(version, '2026.6') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'mullvad vpn.exe');"
       },
-      "installer_url": "https://github.com/mullvad/mullvadvpn-app/releases/download/2026.5/MullvadVPN-2026.5_x64.exe",
+      "installer_url": "https://github.com/mullvad/mullvadvpn-app/releases/download/2026.6/MullvadVPN-2026.6_x64.exe",
       "install_script_ref": "faea838a",
       "uninstall_script_ref": "9b2d3e76",
-      "sha256": "2a3efc4de6a97a2ea1c034ea617c699c5c94b8006d24beece7508d3443b760d5",
+      "sha256": "624d2b0577563f3a7733641514ae9ad94652767bed6f1079e7e94a915e77a46e",
       "default_categories": [
         "Security"
       ]

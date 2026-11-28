@@ -1,4 +1,4 @@
-<title>DEX overview</title>
+<title>Overview</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,8 @@
 .dash .big { margin-top: 2px; }
 .dash.wide { grid-column: 1 / -1; grid-row: auto; grid-template-rows: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; }
 .dash.wide > :first-child { grid-column: 1 / -1; }
+/* Two cards that split a full row between them, whatever the main grid's column count. */
+.dash-pair { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
 .spark { margin-top: 12px; }
 .spark-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin-top: 2px; }
 .spark-empty { height: 48px; margin-top: 12px; display: flex; align-items: center; justify-content: center; text-align: center;
@@ -32,8 +34,8 @@
   <header class="top" id="top"></header>
   <div class="title-row">
     <div>
-      <h1>DEX overview</h1>
-      <p class="subtitle">How your computers are doing across every DEX dashboard: hardware, software, patching, AI tools, connectivity, energy, and policies. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
+      <h1>Overview</h1>
+      <p class="subtitle">How your computers are doing across every dashboard: the experience score, hardware, software, patching, AI tools, connectivity, energy, and policies. Each card sums up one dashboard. Open it for the computers behind the numbers.</p>
     </div>
   </div>
   <section class="hero" id="hero" aria-label="Summary"></section>
@@ -88,8 +90,16 @@ const sumSince = (rows, f, days) => {
 };
 const offMac = () => PLATFORM && PLATFORM !== "macos";
 
-// Alphabetical by title, then Policies and Analytics across the bottom, since they check compliance and the data behind the rest.
+// Alphabetical by title, then Experience score and Policies sharing a row, and Analytics across the bottom,
+// since they sum up the rest, check compliance, and check the data behind the rest.
 // key: the card's main number for today's row. spark: the same measure per day.
+const expPage = DATA.pages.experience || { categories: [], grades: [], target: 75 };
+const expGrade = (x) => (Number.isFinite(x) ? (expPage.grades.find(([, lo]) => x >= lo) || ["F"])[0] : null);
+// The lowest of today's scored categories, averaged over the selected computers.
+function expLowest(r) {
+  const cats = expPage.categories.filter(([c, , w]) => w > 0 && r[`n_${c}`]).map(([c, label]) => [label, r[`c_${c}`] / r[`n_${c}`] / 10]);
+  return cats.sort((a, b) => a[1] - b[1])[0];
+}
 const CARDS = [
   { page: "ai", title: "AI governance", about: "Which AI tools run where, and the settings that put data at risk.",
     label: () => "Using AI today", spark: (r) => r.act,
@@ -119,7 +129,14 @@ const CARDS = [
     key: (r, rows) => sumSince(rows, "kwh", 7), keyFmt: kwhFmt, unit: () => "kWh, Macs",
     rows: (r, rows) => [[`Carbon, ${windowLabel("sustainability", 7)}`, offMac() ? "---" : kgFmt(sumSince(rows, "co2", 7))],
       ["Haven't slept", fmt.n(r.never_slept), r.never_slept], ["Sleep turned off", fmt.n(r.sleep_off)]] },
-  { page: "policies", title: "Policies", about: "Which Fleet policies your computers pass and fail, today and on any day this year.", wide: true,
+  { page: "experience", title: "Experience score", pair: true,
+    about: "One score from 0 to 100 for each computer, from the other dashboards, weighted the way your admins choose.",
+    label: () => "Average experience score", spark: (r) => (r.scored ? r.score10 / r.scored / 10 : NaN), yMax: 100,
+    keyFmt: (x) => (Number.isFinite(x) ? String(Math.round(x)) : "---"),
+    unit: (r) => { const g = expGrade(r.scored ? r.score10 / r.scored / 10 : NaN); return `${g ? `grade ${g}, ` : ""}${fmt.plural(r.scored, "computer")} scored`; },
+    rows: (r) => { const low = expLowest(r); return [[`Good experience (${expPage.target}+)`, fmt.pct(pct(r.good || 0, r.scored))],
+      ["Below target", fmt.n(r.scored - (r.good || 0)), r.scored - (r.good || 0)], ["Lowest category", low ? `${low[0]}, ${Math.round(low[1])}` : "---"]]; } },
+  { page: "policies", title: "Policies", about: "Which Fleet policies your computers pass and fail, today and on any day this year.", pair: true,
     label: () => "Policy pass rate", spark: (r) => pct(r.passed, r.passed + r.failed), keyFmt: fmt.pct, yMax: 100,
     unit: (r) => `${fmt.n(r.passed)} of ${fmt.n(r.passed + r.failed)} results`,
     rows: (r) => [["Failing a policy", fmt.n(r.any_fail), r.any_fail], ["Passing every policy", fmt.pct(pct(r.all_pass, r.computers))],
@@ -175,6 +192,7 @@ function render() {
   const silent = now("connectivity", (r) => r.stale7);
   const high = now("ai", (r) => r.high);
   const neverSlept = now("sustainability", (r) => r.never_slept);
+  const belowTarget = DATA.pages.experience ? now("experience", (r) => r.scored - (r.good || 0)) : null;
 
   // Summary
   const parts = [];
@@ -196,10 +214,11 @@ function render() {
       railRow("Need hardware action", action, "lifecycle"),
       railRow("Not checking in", silent, "connectivity"),
       railRow("High-risk AI findings", high, "ai"),
-      railRow("Haven't slept", neverSlept, "sustainability")));
+      railRow("Haven't slept", neverSlept, "sustainability"),
+      DATA.pages.experience ? railRow("Below experience target", belowTarget, "experience") : null));
 
   // Cards
-  mount("dashes", CARDS.map((c) => {
+  const cards = CARDS.map((c) => {
     const { rows, last } = byPage[c.page];
     const keyFmt = c.keyFmt || fmt.n;
     const notMeasured = c.macOnly && offMac();
@@ -221,7 +240,14 @@ function render() {
     } },
       h("div", {}, h("h3", {}, link), h("p", { class: "about" }, c.about)),
       main, details);
-  }));
+  });
+  const grid = [];
+  cards.forEach((card, i) => {
+    if (!CARDS[i].pair) grid.push(card);
+    else if (CARDS[i - 1]?.pair) grid[grid.length - 1].append(card);
+    else grid.push(h("div", { class: "dash-pair" }, card));
+  });
+  mount("dashes", grid);
 
   document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API, from the same daily counts as each dashboard's Over time charts. Rebuilt daily.`;
 }

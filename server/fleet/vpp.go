@@ -359,6 +359,11 @@ func ValidateAppleAppConfiguration(config []byte) error {
 	if name, ok := findUnsupportedFleetVar(root); ok {
 		return unsupportedAppleAppConfigVarError(name)
 	}
+	// Also checked here, not only by ds.ValidateReferencedCustomHostVitals,
+	// because fleetctl runs this validator where there's no database.
+	if malformed := ContainsMalformedCustomHostVitalRefs(string(config)); len(malformed) > 0 {
+		return NewInvalidArgumentError("configuration", (&InvalidCustomHostVitalRefError{Refs: malformed}).Error())
+	}
 	return nil
 }
 

@@ -42,27 +42,24 @@ describe("PolicyLabelModal", () => {
       screen.queryByRole("link", { name: "Engineering" })
     ).not.toBeInTheDocument();
 
-    expect(
-      screen.queryByText(/Policy excludes hosts that/)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Servers")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Policy targets hosts that/)).toHaveLength(1);
   });
 
   it("renders only the exclude section when only exclude labels are provided", () => {
     render(
       <PolicyLabelModal
         excludeLabels={EXCLUDE_LABELS}
-        excludeScopeLabel="exclude all"
+        excludeScopeLabel="don’t have all"
         onClose={jest.fn()}
       />
     );
 
-    expect(screen.getByText(/Policy excludes hosts that/)).toBeInTheDocument();
-    expect(screen.getByText("exclude all")).toBeInTheDocument();
+    expect(screen.getByText(/Policy targets hosts that/)).toBeInTheDocument();
+    expect(screen.getByText("don’t have all")).toBeInTheDocument();
     expect(screen.getByText("Servers")).toBeInTheDocument();
 
-    expect(
-      screen.queryByText(/Policy targets hosts that/)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Engineering")).not.toBeInTheDocument();
   });
 
   it("renders both include and exclude sections together", () => {
@@ -71,15 +68,14 @@ describe("PolicyLabelModal", () => {
         includeLabels={INCLUDE_LABELS}
         includeScopeLabel="have all"
         excludeLabels={EXCLUDE_LABELS}
-        excludeScopeLabel="exclude any"
+        excludeScopeLabel="don’t have any"
         onClose={jest.fn()}
       />
     );
 
-    expect(screen.getByText(/Policy targets hosts that/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Policy targets hosts that/)).toHaveLength(2);
     expect(screen.getByText("have all")).toBeInTheDocument();
-    expect(screen.getByText(/Policy excludes hosts that/)).toBeInTheDocument();
-    expect(screen.getByText("exclude any")).toBeInTheDocument();
+    expect(screen.getByText("don’t have any")).toBeInTheDocument();
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText("Servers")).toBeInTheDocument();
   });
@@ -89,9 +85,6 @@ describe("PolicyLabelModal", () => {
 
     expect(
       screen.queryByText(/Policy targets hosts that/)
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/Policy excludes hosts that/)
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
   });

@@ -535,7 +535,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	ue.DELETE("/api/_version_/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, fleet.DeleteLabelByIDRequest{})
 	ue.WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, fleet.ApplyLabelSpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, fleet.GetLabelSpecsRequest{})
-	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, getGenericSpecRequest{})
+	ue.GET("/api/_version_/fleet/spec/labels/{name}", getLabelSpecEndpoint, fleet.GetLabelSpecRequest{})
 
 	// This endpoint runs live queries synchronously (with a configured timeout).
 	ue.POST("/api/_version_/fleet/reports/{id:[0-9]+}/run", runOneLiveQueryEndpoint, runOneLiveQueryRequest{})
@@ -675,6 +675,8 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/install", installSelfServiceConfigurationProfileEndpoint, installSelfServiceConfigurationProfileRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles/{profile_uuid}/uninstall", uninstallSelfServiceConfigurationProfileEndpoint, uninstallSelfServiceConfigurationProfileRequest{})
 
+	// Deprecated: use the /fleet/hosts/{id} mdm.profiles instead for host scoped, or /fleet/configuration_profiles for fleet specific profiles
+	// This returns a list of all Apple configuration profiles for the given fleet the host is on, not scoped to the individual host.
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 
 	mdmAnyMW.WithRequestBodySizeLimit(fleet.MaxMDMCommandSize).POST("/api/_version_/fleet/commands/run", runMDMCommandEndpoint, runMDMCommandRequest{})

@@ -1472,43 +1472,71 @@ func (s *integrationMDMTestSuite) TestWindowsAutopilotESPCommands() {
 	t.Run("serial reply links and transitions mid-session", func(t *testing.T) {
 		// The shape real devices follow: the DevDetail Get sent at session start is answered on MsgID 3, which
 		// links the host and moves the enrollment to Active in that same message.
-		host := createOrbitEnrolledHost(t, "windows", "esp-link", s.ds)
-		d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, "esp-link@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
-		require.NoError(t, d.Enroll())
+		for _, tc := range []struct {
+			name          string
+			suffix        string
+			agentEnrolled bool
+		}{
+			// As when the device comes back from a reset, which forgets the host's agent.
+			{name: "host no agent has enrolled as", suffix: "esp-link"},
+			// The serial is only the device's claim, so the host's own agent has to link it instead.
+			{name: "host an agent enrolled as", suffix: "esp-link-agent", agentEnrolled: true},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				host := createOrbitEnrolledHost(t, "windows", tc.suffix, s.ds)
+				if !tc.agentEnrolled {
+					mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+						_, err := q.ExecContext(ctx, `UPDATE hosts SET orbit_node_key = NULL, node_key = NULL WHERE id = ?`, host.ID)
+						return err
+					})
+				}
+				d := mdmtest.NewTestMDMClientWindowsAutomatic(s.server.URL, tc.suffix+"@example.com", mdmtest.TestWindowsMDMClientWithSigningKeyAndTenantID(s.jwtSigningKey, defaultFakeJWTKeyID, tenantID))
+				require.NoError(t, d.Enroll())
 
-		cmds, err := d.StartManagementSession()
-		require.NoError(t, err)
-		cmds = ackAll(t, d, cmds, "", "")
-		holds, gets := countSessionStartCmds(cmds)
-		require.Equal(t, 1, holds)
-		require.Equal(t, 1, gets)
+				cmds, err := d.StartManagementSession()
+				require.NoError(t, err)
+				cmds = ackAll(t, d, cmds, "", "")
+				holds, gets := countSessionStartCmds(cmds)
+				require.Equal(t, 1, holds)
+				require.Equal(t, 1, gets)
 
-		// MsgID 3: ack the batch and answer the Get with the serial.
-		msgID, err := d.GetCurrentMsgID()
-		require.NoError(t, err)
-		d.AppendResponse(fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdResults},
-			CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
-			Cmd:   new(fleet.CmdGet),
-			Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
-		})
-		cmds = ackAll(t, d, cmds, "", "")
+				// MsgID 3: ack the batch and answer the Get with the serial.
+				msgID, err := d.GetCurrentMsgID()
+				require.NoError(t, err)
+				d.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdResults},
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					MsgRef:  &msgID, CmdRef: new(fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"),
+					Cmd:   new(fleet.CmdGet),
+					Items: []fleet.CmdItem{{Source: new(devDetailSMBIOSSerialNumberURI), Data: &fleet.RawXmlData{Content: host.HardwareSerial}}},
+				})
+				cmds = ackAll(t, d, cmds, "", "")
 
-		holds, gets = countSessionStartCmds(cmds)
-		assert.Zero(t, holds, "no hold bundle once linked")
-		assert.Zero(t, gets, "no Get once linked")
-		var transition *fleet.ProtoCmdOperation
-		for _, c := range cmds {
-			if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
-				transition = &c
-			}
+				holds, gets = countSessionStartCmds(cmds)
+				assert.Zero(t, holds, "no hold bundle mid-session")
+				assert.Zero(t, gets, "no Get mid-session")
+				var transition *fleet.ProtoCmdOperation
+				for _, c := range cmds {
+					if c.Verb == fleet.CmdReplace && strings.HasSuffix(c.Cmd.GetTargetURI(), "/DevicePreparation/PolicyProviders/"+syncml.DocProvisioningAppProviderID+"/InstallationState") {
+						transition = &c
+					}
+				}
+				enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
+				require.NoError(t, err)
+				if tc.agentEnrolled {
+					assert.Nil(t, transition, "no transition without a link")
+					assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationPending, awaiting(t, d))
+					assert.Empty(t, enrolledDevice.HostUUID)
+					refetched, err := s.ds.Host(ctx, host.ID)
+					require.NoError(t, err)
+					assert.True(t, refetched.RefetchRequested, "the host's agent is asked to report the MDM device ID that links it")
+					return
+				}
+				require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
+				assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
+				assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
+			})
 		}
-		require.NotNil(t, transition, "the reply must carry the DevicePreparation InstallationState=3")
-		assert.Equal(t, fleet.WindowsMDMAwaitingConfigurationActive, awaiting(t, d))
-		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
-		require.NoError(t, err)
-		assert.Equal(t, host.UUID, enrolledDevice.HostUUID)
 	})
 
 	t.Run("user-scope release rejected with 405 then retried until acked", func(t *testing.T) {
@@ -2284,7 +2312,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEnrollDoesNotReplaceAnotherHosts
 
 // TestWindowsMDMEntraEnrollmentBoundToEntraDevice covers Entra enrollments, which name their device only by a device-reported
 // hardware ID: the Entra device ID signed into the access token decides whether an enrollment may replace the one holding that
-// hardware ID, and a token without it cannot replace an enrollment bound to an Entra device.
+// hardware ID, and nothing replaces a host's enrollment that is bound to no Entra device.
 func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevice() {
 	t := s.T()
 	ctx := t.Context()
@@ -2347,6 +2375,34 @@ func (s *integrationMDMTestSuite) TestWindowsMDMEntraEnrollmentBoundToEntraDevic
 		sameDevice := newEntraHost(fleetdDevice.HardwareID, autopilotEntraDeviceID)
 		require.NoError(t, sameDevice.Enroll())
 		requireEnrollment(t, fleetdDevice.HardwareID, sameDevice.DeviceID, autopilotEntraDeviceID)
+	})
+
+	t.Run("a fleetd enrollment of a host without an Autopilot record is not replaced through Entra", func(t *testing.T) {
+		fleetdHost, fleetdDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+		var wipeResp fleet.WipeHostResponse
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", fleetdHost.ID), nil, http.StatusOK, &wipeResp)
+
+		for _, entraDeviceID := range []string{uuid.NewString(), ""} {
+			require.ErrorContains(t, newEntraHost(fleetdDevice.HardwareID, entraDeviceID).Enroll(), "SOAP fault")
+			requireEnrollment(t, fleetdDevice.HardwareID, fleetdDevice.DeviceID, "")
+
+			// Management sessions load the newest enrollment holding the device ID.
+			sameDeviceID := newEntraHost("", entraDeviceID)
+			sameDeviceID.DeviceID = fleetdDevice.DeviceID
+			require.ErrorContains(t, sameDeviceID.Enroll(), "SOAP fault")
+			enrollment, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, fleetdDevice.DeviceID)
+			require.NoError(t, err)
+			require.Equal(t, fleetdDevice.HardwareID, enrollment.MDMHardwareID)
+		}
+		status, err := s.ds.GetHostLockWipeStatus(ctx, fleetdHost)
+		require.NoError(t, err)
+		require.True(t, status.IsPendingWipe())
+
+		// Deleting the host releases its hardware ID.
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", fleetdHost.ID), nil, http.StatusOK, &deleteHostResponse{})
+		reenrolled := newEntraHost(fleetdDevice.HardwareID, uuid.NewString())
+		require.NoError(t, reenrolled.Enroll())
+		requireEnrollment(t, fleetdDevice.HardwareID, reenrolled.DeviceID, reenrolled.EntraDeviceID)
 	})
 
 	t.Run("the same host re-enrolls through Entra", func(t *testing.T) {
@@ -2412,4 +2468,110 @@ func (s *integrationMDMTestSuite) TestWindowsRekeyFlow() {
 	enrolled, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, mdmHost.DeviceID)
 	require.NoError(t, err)
 	require.Nil(t, enrolled.CredentialsHash)
+}
+
+// TestWindowsESPHostRowsSharingUUID drives an Autopilot ESP for a device whose hardware UUID is on two hosts rows in different
+// fleets, and checks that the profile reconciler and the ESP release check read the same row's fleet. Fleet A has a setup-experience
+// installer and no profiles, so a release check reading fleet A waits for setup results (none are written here); fleet B has a
+// profile and no setup software, so a release check reading fleet B releases.
+func (s *integrationMDMTestSuite) TestWindowsESPHostRowsSharingUUID() {
+	t := s.T()
+	ctx := t.Context()
+
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
+	tenantID := uuid.New().String()
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{ "mdm": { "windows_entra_tenant_ids": ["`+tenantID+`"] } }`),
+		http.StatusOK, &appConfigResponse{})
+	const profileLocURI = "./Device/Vendor/MSFT/Policy/Config/Experience/AllowManualMDMUnenrollment"
+
+	newRow := func(t *testing.T, name, hwUUID, osqueryID, serial string, teamID uint) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Minute),
+			OsqueryHostID:   new(osqueryID),
+			NodeKey:         new(name + "-nk"),
+			UUID:            hwUUID,
+			Hostname:        name + ".local",
+			ComputerName:    name,
+			HardwareSerial:  serial,
+			Platform:        "windows",
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, h, s.ds)
+		h.OrbitNodeKey = &orbitKey
+		s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &teamID, HostIDs: []uint{h.ID}},
+			http.StatusOK, &addHostsToTeamResponse{})
+		return h
+	}
+
+	for i, tc := range []struct {
+		name       string
+		olderIsUID bool // which row has osquery_host_id equal to the hardware UUID, as fleetd's default host identifier sets it
+	}{
+		{"older row has the fleetd host identifier", true},
+		{"newer row has the fleetd host identifier", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hwUUID := strings.ToUpper(uuid.NewString())
+			serial := "SER-" + strings.ToUpper(uuid.NewString()[:8])
+
+			teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("%s-A-%d", t.Name(), i)})
+			require.NoError(t, err)
+			teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: fmt.Sprintf("%s-B-%d", t.Name(), i)})
+			require.NoError(t, err)
+
+			tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+			require.NoError(t, err)
+			installerID, _, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				TeamID: &teamA.ID, UserID: s.users["admin1@example.com"].ID,
+				InstallScript: "echo install", InstallerFile: tfr, StorageID: uuid.NewString(),
+				Filename: fmt.Sprintf("esp-rows-%d.msi", i), Title: fmt.Sprintf("esp-rows-%d", i), Version: "1.0",
+				Source: "programs", Platform: "windows", ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE software_installers SET install_during_setup = 1 WHERE id = ?`, installerID)
+				return err
+			})
+			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: fmt.Sprintf("esp-rows-B-%d", i), Contents: syncml.ForTestWithData([]syncml.TestCommand{
+					{Verb: fleet.CmdReplace, LocURI: profileLocURI, Data: "0"},
+				})},
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(teamB.ID))
+
+			olderOsq, newerOsq := hwUUID, "instance-"+uuid.NewString()
+			if !tc.olderIsUID {
+				olderOsq, newerOsq = newerOsq, olderOsq
+			}
+			older := newRow(t, fmt.Sprintf("esp-rows-older-%d", i), hwUUID, olderOsq, serial, teamA.ID)
+			require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, older.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "",
+				fleet.PersonalEnrollmentTypeNone))
+
+			d := s.enrollWindowsHostInMDMViaAutopilot(s.server.URL, fmt.Sprintf("esp-rows-%d@example.com", i), tenantID)
+			cmds, err := d.StartManagementSession()
+			require.NoError(t, err)
+			ackWindowsCmds(t, d, cmds)
+
+			// fleetd comes up during the ESP as a newer row with the same hardware UUID and links the enrollment.
+			newer := newRow(t, fmt.Sprintf("esp-rows-newer-%d", i), hwUUID, newerOsq, serial, teamB.ID)
+			require.NoError(t, s.ds.SetOrUpdateHostOrbitInfo(ctx, newer.ID, "1.23", sql.NullString{}, sql.NullBool{}))
+			linkWindowsHostToMDMEnrollment(t, s.ds, s.server.URL, newer, d)
+			require.Less(t, older.ID, newer.ID)
+
+			var gotProfileB, released bool
+			for range 4 {
+				cmds, err := d.StartManagementSession()
+				require.NoError(t, err)
+				gotProfileB = gotProfileB || findWindowsCmdForURI(cmds, fleet.CmdReplace, profileLocURI) != nil
+				released = released || findWindowsUserReleaseCmd(cmds) != nil
+				ackWindowsCmds(t, d, cmds)
+			}
+
+			wantFleetB := !tc.olderIsUID
+			assert.Equal(t, wantFleetB, gotProfileB, "the profile reconciler should use the row with the fleetd host identifier")
+			assert.Equal(t, wantFleetB, released, "the ESP release check should use the same row as the profile reconciler")
+		})
+	}
 }

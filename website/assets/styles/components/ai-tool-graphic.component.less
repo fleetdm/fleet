@@ -48,10 +48,11 @@
 
   // AI tool animations, laid out at the Figma windows' size (940×576) with
   // 1em as one Figma pixel, so the whole graphic scales through font-size.
-  // Tablet and mobile drop side panes to keep the conversation legible.
+  // Tablet drops side panes to keep the conversation legible. Phones show the
+  // tablet layout scaled down, since Fleet itself has no phone layout.
   // Text elements set their own font-size in em, so their children can't use
   // em lengths for Figma pixels.
-  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'], [purpose='slack-animation'], [purpose='teams-animation'] {
+  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'], [purpose='slack-animation'], [purpose='teams-animation'], [purpose='ai-demo-ending'] {
     position: relative;
     width: 940em;
     height: 576em;
@@ -69,17 +70,10 @@
         font-size: ~'calc(min(752px, 100cqw) / 752)';
       }
     }
-    @media (max-width: 767px) {
-      width: 362em;
-      font-size: ~'calc(min(362px, 100vw - 64px) / 362)';
-      @supports (width: 1cqw) {
-        font-size: ~'calc(min(362px, 100cqw) / 362)';
-      }
-    }
     @media (max-width: 575px) {
-      font-size: ~'calc(min(362px, 100vw - 48px) / 362)';
+      font-size: ~'calc(min(752px, 100vw - 48px) / 752)';
       @supports (width: 1cqw) {
-        font-size: ~'calc(min(362px, 100cqw) / 362)';
+        font-size: ~'calc(min(752px, 100cqw) / 752)';
       }
     }
     text-align: left;
@@ -98,16 +92,6 @@
       font-weight: 600;
       color: inherit;
     }
-  }
-  // macOS draws the window controls, so every tool places them the same way:
-  // 14px in from the window's outer edge, inside its 1px border.
-  [purpose='ai-demo-window-controls'] {
-    position: absolute;
-    z-index: 1;
-    left: 13em;
-    top: 13em;
-    width: 47em;
-    height: 11em;
   }
   [purpose='claude-code-animation'] {
     color: #191919;
@@ -140,9 +124,6 @@
     @media (max-width: 991px) {
       width: 752em;
     }
-    @media (max-width: 767px) {
-      width: 362em;
-    }
   }
 
   [purpose='claude-code-sidebar'] {
@@ -158,13 +139,12 @@
       display: none;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='claude-code-title-bar'] {
     display: flex;
     align-items: center;
     gap: 6em;
     height: 25em;
-    padding-left: 68em;
+    padding-left: 11em;
     img {
       width: 14em;
       height: 14em;
@@ -325,16 +305,6 @@
       width: 16em;
       height: 16em;
     }
-    // Without the sidebar, leave room for the window controls.
-    @media (max-width: 991px) {
-      padding-left: 74em;
-    }
-    @media (max-width: 767px) {
-      padding-right: 14em;
-      > img {
-        display: none;
-      }
-    }
   }
   [purpose='claude-code-session-title'] {
     display: flex;
@@ -375,9 +345,6 @@
     align-self: stretch;
     overflow: hidden;
     padding-top: 11em;
-    @media (max-width: 767px) {
-      padding: 11em 14em 0;
-    }
   }
   [purpose='claude-code-thread'] {
     width: 540em;
@@ -385,9 +352,6 @@
     display: flex;
     flex-direction: column;
     gap: 14em;
-    @media (max-width: 767px) {
-      width: auto;
-    }
     &.fading-out {
       opacity: 0;
       transition: opacity 0.5s ease-in;
@@ -402,9 +366,6 @@
     padding: 9em 14em;
     border-radius: 13em;
     background-color: #f3f3f3;
-    @media (max-width: 767px) {
-      max-width: 270em;
-    }
   }
   [purpose='claude-code-tool-calls'] {
     display: flex;
@@ -419,10 +380,6 @@
     img {
       width: 14em;
       height: 14em;
-    }
-    @media (max-width: 767px) {
-      flex-wrap: wrap;
-      row-gap: 0;
     }
   }
   [purpose='claude-code-tool-label'], [purpose='claude-code-tool-meta'], [purpose='claude-code-tool-added'] {
@@ -496,11 +453,6 @@
     flex-direction: column;
     gap: 7em;
     padding: 11em 0 13em;
-    @media (max-width: 767px) {
-      align-self: stretch;
-      width: auto;
-      padding: 11em 11em 13em;
-    }
   }
   [purpose='claude-code-input'] {
     display: flex;
@@ -569,9 +521,6 @@
     @media (max-width: 991px) {
       width: 752em;
     }
-    @media (max-width: 767px) {
-      width: 362em;
-    }
   }
   [purpose='cursor-placeholder-bar'] {
     display: block;
@@ -598,14 +547,13 @@
       display: none;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='cursor-window-controls'] {
     display: flex;
     align-items: center;
     gap: 11em;
     height: 14em;
     margin-bottom: 13em;
-    padding: 0 5em 0 63em;
+    padding: 0 5em 0 7em;
   }
   // Overrides the sidebar's 13em icon size.
   [purpose='cursor-sidebar'] [purpose='cursor-window-controls'] img {
@@ -698,10 +646,6 @@
     gap: 11em;
     height: 36em;
     padding: 0 13em 0 9em;
-    // Without the sidebar, leave room for the window controls.
-    @media (max-width: 991px) {
-      padding-left: 74em;
-    }
     img {
       width: 14em;
       height: 14em;
@@ -744,9 +688,6 @@
     align-self: stretch;
     overflow: hidden;
     padding-top: 5em;
-    @media (max-width: 767px) {
-      padding: 5em 14em 0;
-    }
   }
   [purpose='cursor-thread'] {
     width: 540em;
@@ -754,9 +695,6 @@
     display: flex;
     flex-direction: column;
     gap: 13em;
-    @media (max-width: 767px) {
-      width: auto;
-    }
     &.fading-out {
       opacity: 0;
       transition: opacity 0.5s ease-in;
@@ -811,16 +749,10 @@
     > span:nth-child(1) {
       flex-shrink: 0;
       width: (162em / 12);
-      @media (max-width: 767px) {
-        width: (124em / 12);
-      }
     }
     > span:nth-child(2) {
       flex-shrink: 0;
       width: (99em / 12);
-      @media (max-width: 767px) {
-        width: (50em / 12);
-      }
     }
     > span:nth-child(3) {
       flex: 1;
@@ -896,11 +828,6 @@
     flex-direction: column;
     gap: 5em;
     padding: 7em 0 9em;
-    @media (max-width: 767px) {
-      align-self: stretch;
-      width: auto;
-      padding: 7em 11em 9em;
-    }
   }
   [purpose='cursor-input'] {
     display: flex;
@@ -947,9 +874,6 @@
     line-height: 1.5;
     white-space: nowrap;
     color: #555;
-    @media (max-width: 767px) {
-      display: none;
-    }
   }
   [purpose='cursor-send'] {
     flex-shrink: 0;
@@ -1018,9 +942,6 @@
     @media (max-width: 991px) {
       width: 752em;
     }
-    @media (max-width: 767px) {
-      width: 362em;
-    }
   }
 
   [purpose='copilot-sidebar'] {
@@ -1040,14 +961,13 @@
       display: none;
     }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='copilot-title-bar'] {
     display: flex;
     align-items: center;
     gap: 11em;
     height: 14em;
     margin-bottom: 13em;
-    padding: 0 7em 0 65em;
+    padding: 0 7em 0 7em;
   }
   [purpose='copilot-back'] {
     margin-left: auto;
@@ -1134,13 +1054,6 @@
     gap: 5em;
     height: 38em;
     padding: 0 18em;
-    // Without the sidebar, leave room for the window controls.
-    @media (max-width: 991px) {
-      padding-left: 74em;
-    }
-    @media (max-width: 767px) {
-      padding-right: 14em;
-    }
   }
   [purpose='copilot-session-title'] {
     font-size: 13em;
@@ -1167,16 +1080,10 @@
       width: 13em;
       height: 13em;
     }
-    @media (max-width: 767px) {
-      display: none;
-    }
   }
   [purpose='copilot-panel-icon'] {
     width: 16em;
     height: 16em;
-    @media (max-width: 767px) {
-      margin-left: auto;
-    }
   }
   // The thread is moved with a transform instead of scrolling the pane, so it
   // can ease to the newest message without any scroll events or scrollbars.
@@ -1187,9 +1094,6 @@
     align-self: stretch;
     overflow: hidden;
     padding: 18em 0 0;
-    @media (max-width: 767px) {
-      padding: 18em 14em 0;
-    }
   }
   [purpose='copilot-thread'] {
     width: 540em;
@@ -1197,9 +1101,6 @@
     display: flex;
     flex-direction: column;
     gap: 13em;
-    @media (max-width: 767px) {
-      width: auto;
-    }
     &.fading-out {
       opacity: 0;
       transition: opacity 0.5s ease-in;
@@ -1215,9 +1116,6 @@
     border: 1em solid #e1e6eb;
     border-radius: 11em;
     background-color: #f6f8fa;
-    @media (max-width: 767px) {
-      max-width: 270em;
-    }
   }
   [purpose='copilot-activity-group'] {
     display: flex;
@@ -1343,11 +1241,6 @@
     flex-shrink: 0;
     width: 540em;
     padding: 11em 0 13em;
-    @media (max-width: 767px) {
-      align-self: stretch;
-      width: auto;
-      padding: 11em 11em 13em;
-    }
   }
   [purpose='copilot-input'] {
     display: flex;
@@ -1430,9 +1323,6 @@
     @media (max-width: 991px) {
       width: 752em;
     }
-    @media (max-width: 767px) {
-      width: 362em;
-    }
   }
   [purpose='codex-title-bar'] {
     flex-shrink: 0;
@@ -1446,8 +1336,7 @@
     align-items: center;
     gap: 14em;
     width: 216em;
-    // Starts after the window controls, which every tool pins at 14, 14.
-    padding-left: 74em;
+    padding-left: 13em;
     img {
       width: 14em;
       height: 14em;
@@ -1482,9 +1371,6 @@
     [purpose='codex-ellipsis'] {
       width: 14em;
       height: 14em;
-    }
-    @media (max-width: 767px) {
-      display: none;
     }
   }
   [purpose='codex-divider'] {
@@ -1655,9 +1541,6 @@
     align-self: stretch;
     overflow: hidden;
     padding: 22em 0 0;
-    @media (max-width: 767px) {
-      padding: 22em 14em 0;
-    }
   }
   [purpose='codex-thread'] {
     width: 540em;
@@ -1665,9 +1548,6 @@
     display: flex;
     flex-direction: column;
     gap: 14em;
-    @media (max-width: 767px) {
-      width: auto;
-    }
     &.fading-out {
       opacity: 0;
       transition: opacity 0.5s ease-in;
@@ -1682,9 +1562,6 @@
     padding: 9em 14em;
     border-radius: 16em;
     background-color: #e9f2fd;
-    @media (max-width: 767px) {
-      max-width: 270em;
-    }
     p {
       color: #203450;
     }
@@ -1727,15 +1604,6 @@
       font-size: 12em;
       line-height: 1.5;
       white-space: nowrap;
-    }
-    @media (max-width: 767px) {
-      gap: 9em;
-      > span:nth-child(1) {
-        flex: 0 0 (108em / 12);
-      }
-      > span:nth-child(2) {
-        flex: 0 0 (40em / 12);
-      }
     }
   }
   [purpose='codex-table-header'] {
@@ -1855,11 +1723,6 @@
     flex-shrink: 0;
     width: 540em;
     margin: 7em 0 14em;
-    @media (max-width: 767px) {
-      align-self: stretch;
-      width: auto;
-      margin: 7em 11em 13em;
-    }
   }
   [purpose='codex-input'] {
     display: flex;
@@ -1962,11 +1825,7 @@
     @media (max-width: 991px) {
       width: 752em;
     }
-    @media (max-width: 767px) {
-      width: 362em;
-    }
   }
-  // Starts after the window controls, which every tool pins at 14, 14.
   [purpose='slack-title-bar'] {
     flex-shrink: 0;
     display: flex;
@@ -1978,9 +1837,6 @@
     > img {
       width: 20em;
       height: 20em;
-    }
-    @media (max-width: 767px) {
-      padding-left: 74em;
     }
   }
   [purpose='slack-search'] {
@@ -1996,19 +1852,6 @@
       width: 14em;
       height: 14em;
     }
-    // Too narrow for the search field, so only its icon shows, at the size of the other title bar icons.
-    @media (max-width: 767px) {
-      flex: none;
-      height: auto;
-      margin-left: auto;
-      padding: 0;
-      background-color: transparent;
-      img {
-        width: 20em;
-        height: 20em;
-        opacity: 0.7;
-      }
-    }
   }
   [purpose='slack-body'] {
     flex: 1;
@@ -2023,9 +1866,6 @@
     align-items: center;
     gap: 13em;
     padding-top: 9em;
-    @media (max-width: 767px) {
-      display: none;
-    }
   }
   [purpose='slack-rail-item'] {
     display: flex;
@@ -2049,20 +1889,15 @@
     margin: 0 6em 6em 0;
     overflow: hidden;
     border-radius: 13em;
-    @media (max-width: 767px) {
-      margin-left: 6em;
-    }
   }
+  // With the rail, the same 216px side panel as the other tools.
   [purpose='slack-sidebar'] {
     flex-shrink: 0;
-    width: 183em;
+    width: 156em;
     display: flex;
     flex-direction: column;
     padding-top: 7em;
     background-color: #611f69;
-    @media (max-width: 767px) {
-      display: none;
-    }
   }
   [purpose='slack-sidebar-header'] {
     display: flex;
@@ -2323,80 +2158,250 @@
     font-family: 'Segoe UI', system-ui, sans-serif;
     color: #242424;
     p {
-      font-size: 15em;
-      line-height: 1.3;
+      font-size: 12em;
+      line-height: 1.5;
       color: #242424;
     }
     strong {
       font-weight: 700;
     }
   }
-  // The Teams window art has a wider aspect ratio than the other tools, so it's
-  // scaled to the frame's width and centered. 1em inside it is one pixel of the
-  // Teams Figma frames (desktop 1044×520, tablet 844×576, mobile 492×576).
   [purpose='teams-window'] {
     position: absolute;
     left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1044em;
-    height: 520em;
-    font-size: (940em / 1044);
-    border-radius: 6.962em;
+    top: 0;
+    width: 940em;
+    height: 576em;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 3.481em 9.283em rgba(0, 0, 0, 0.08);
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: #e8e9ea;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
     @media (max-width: 991px) {
-      width: 844em;
-      height: 576em;
-      font-size: (752em / 844);
-    }
-    @media (max-width: 767px) {
-      width: 492em;
-      font-size: (362em / 492);
+      width: 752em;
     }
   }
-  [purpose='teams-chrome'] {
-    display: block;
-    width: 100%;
-    height: 100%;
+  [purpose='teams-title-bar'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12em;
+    height: 41em;
+    padding: 0 6em 0 14em;
+    border-bottom: 1em solid rgba(0, 0, 0, 0.05);
+  }
+  [purpose='teams-logo'] {
+    width: 28em;
+    height: 28em;
+  }
+  [purpose='teams-title-nav'] {
+    flex: 0 1 461em;
+    min-width: 0;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 3.4em;
+    > img {
+      width: 20.6em;
+      height: 20.6em;
+    }
+  }
+  [purpose='teams-search'] {
+    flex: 1;
+    min-width: 0;
+    height: 27.5em;
+    display: flex;
+    align-items: center;
+    gap: 3.4em;
+    margin-left: 10.3em;
+    padding: 0 10.3em;
+    overflow: hidden;
+    border-radius: 3.4em;
+    background-color: @accent-white;
     img {
-      width: 100%;
-      height: 100%;
+      width: 17.2em;
+      height: 17.2em;
+    }
+    span {
+      font-size: 12em;
+      line-height: (17 / 12);
+      color: #616161;
+      white-space: nowrap;
     }
   }
-  // The message area below the chat header.
-  [purpose='teams-conversation'] {
-    position: absolute;
-    left: 278.5em;
-    top: 93.37em;
-    width: 760em;
-    height: 420.43em;
-    border-radius: 0 0 8em 8em;
+  [purpose='teams-body'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+  // The app bar and chat list add up to the same 216px side panel as the other tools.
+  [purpose='teams-app-bar'] {
+    flex-shrink: 0;
+    width: 57em;
+    display: flex;
+    flex-direction: column;
+    padding-top: 3.4em;
+  }
+  [purpose='teams-app-bar-item'] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 48.1em;
+    img {
+      width: 20.6em;
+      height: 20.6em;
+    }
+    &.selected::before {
+      content: '';
+      position: absolute;
+      left: 0.7em;
+      top: 3.4em;
+      width: 1.7em;
+      height: 41.3em;
+      border-radius: 1em;
+      background-color: #5b5fc7;
+    }
+  }
+  [purpose='teams-sidebar'] {
+    flex-shrink: 0;
+    width: 159em;
+    display: flex;
+    flex-direction: column;
+  }
+  [purpose='teams-sidebar-header'] {
+    display: flex;
+    align-items: center;
+    gap: 3.4em;
+    height: 51em;
+    margin-bottom: 11em;
+    padding: 0 11.5em 0 17.2em;
+  }
+  [purpose='teams-sidebar-title'] {
+    margin-right: auto;
+    font-size: 15em;
+    font-weight: 700;
+    line-height: (20 / 15);
+  }
+  [purpose='teams-icon-button'] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26.3em;
+    height: 27.5em;
+    img {
+      width: 17.2em;
+      height: 17.2em;
+    }
+    & + [purpose='teams-icon-button'] img {
+      width: 14.8em;
+      height: 14.8em;
+    }
+  }
+  [purpose='teams-sidebar-label'] {
+    display: block;
+    height: (24em / 10);
+    padding-left: (17.2em / 10);
+    font-size: 10em;
+    line-height: 2.4;
+    color: #616161;
+  }
+  [purpose='teams-sidebar-item'] {
+    display: flex;
+    align-items: center;
+    gap: 10.3em;
+    height: 45.2em;
+    margin: 0 7.1em 0 5.2em;
+    padding-left: 12em;
+    border-radius: 3.4em;
+    img {
+      width: 28em;
+      height: 28em;
+    }
+    &.selected {
+      background-color: #f9f9f9;
+    }
+  }
+  [purpose='teams-placeholder-avatar'] {
+    flex-shrink: 0;
+    width: 28em;
+    height: 28em;
+    border-radius: 50%;
+    background-color: #d0d0d0;
+  }
+  [purpose='teams-placeholder-bar'] {
+    width: 85.5em;
+    height: 10.3em;
+    border-radius: 3.4em;
+    background-color: #d0d0d0;
+  }
+  [purpose='teams-chat-name'] {
+    font-size: 12em;
+    font-weight: 700;
+    line-height: (14 / 12);
+  }
+  [purpose='teams-main'] {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    margin: 0 5em 4em 0;
     overflow: hidden;
-    @media (max-width: 991px) {
-      left: 220.5em;
-      top: 93.57em;
-      width: 617em;
-      height: 477.43em;
+    border-radius: 8em;
+    background-color: @accent-white;
+  }
+  [purpose='teams-header'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    height: 52em;
+    padding-left: 16em;
+    border-bottom: 1em solid #f0f0f0;
+    img {
+      width: 28em;
+      height: 28em;
     }
-    @media (max-width: 767px) {
+  }
+  [purpose='teams-chat-title'] {
+    margin-left: (11em / 15.5);
+    font-size: 15.5em;
+    font-weight: 700;
+    line-height: (20.6 / 15.5);
+  }
+  [purpose='teams-tab'] {
+    position: relative;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    margin-left: (14em / 12);
+    font-size: 12em;
+    font-weight: 600;
+    &::after {
+      content: '';
+      position: absolute;
       left: 0;
-      width: 492em;
-      height: 482.43em;
-      border-radius: 0;
+      right: 0;
+      bottom: (1em / 12);
+      height: (1.7em / 12);
+      border-radius: (1em / 12);
+      background-color: #5b5fc7;
     }
+  }
+  // The thread is moved with a transform instead of scrolling the pane, so it
+  // can ease to the newest message without any scroll events or scrollbars.
+  [purpose='teams-conversation'] {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
   [purpose='teams-thread'] {
     display: flex;
     flex-direction: column;
-    gap: 13.752em;
-    padding: 15.7em 23.7em 0 22.7em;
-    @media (max-width: 991px) {
-      padding: 12em 10.5em 0 9.5em;
-    }
-    @media (max-width: 767px) {
-      padding: 12em 10em 0 10em;
-    }
+    gap: 13.75em;
+    padding: 16em 23.2em 0;
     &.fading-out {
       opacity: 0;
       transition: opacity 0.5s ease-in;
@@ -2407,7 +2412,7 @@
   }
   [purpose='teams-first-message'], [purpose='teams-second-message'] {
     align-self: flex-end;
-    padding: 10.314em 13.752em;
+    padding: 10.3em 13.75em;
     border-radius: 8em;
     background-color: #e8ebfa;
     p {
@@ -2415,28 +2420,19 @@
     }
   }
   [purpose='teams-first-message'] {
-    @media (max-width: 991px) {
-      max-width: 346em;
-      p {
-        white-space: normal;
-      }
-    }
-    @media (max-width: 767px) {
-      max-width: 339em;
-    }
   }
   [purpose='teams-reply'], [purpose='teams-typing'] {
     display: flex;
     align-items: flex-start;
-    gap: 6.876em;
+    gap: 6.9em;
   }
   [purpose='teams-typing'] {
-    padding-top: 10.314em;
+    padding-top: 10.3em;
   }
   [purpose='teams-avatar'] {
     width: 28em;
     height: 28em;
-    margin-top: 10.314em;
+    margin-top: 10.3em;
   }
   [purpose='teams-typing'] [purpose='teams-avatar'] {
     margin-top: 0;
@@ -2446,7 +2442,7 @@
     align-items: center;
     gap: 3.5em;
     height: 28em;
-    padding: 0 13.752em;
+    padding: 0 13.75em;
     border-radius: 8em;
     background-color: #f5f5f5;
     span {
@@ -2457,49 +2453,1154 @@
       background-color: #616161;
     }
   }
-  // Bubbles hug their text and wrap only at the widths set in Figma.
   [purpose='teams-reply-body'] {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3.438em;
-  }
-  [purpose='teams-first-reply'] [purpose='teams-reply-body'] > [purpose='teams-reply-bubble'] {
-    max-width: 434.5em;
-    @media (max-width: 991px) {
-      max-width: 349.5em;
-    }
-  }
-  [purpose='teams-second-reply'] [purpose='teams-reply-bubble'] {
-    @media (max-width: 767px) {
-      width: 381.1em;
-    }
-  }
-  [purpose='teams-sender'] {
-    font-size: 12em;
-    line-height: 13.752 / 12;
-    color: #616161;
-    @media (max-width: 991px) {
-      font-size: 10.314em;
-      line-height: 13.752 / 10.314;
-    }
-    @media (max-width: 767px) {
-      font-size: 12em;
-      line-height: 13.752 / 12;
-    }
+    gap: 3.4em;
   }
   [purpose='teams-reply-bubble'] {
-    padding: 10.314em 20.628em 10.314em 13.752em;
+    max-width: 515.7em;
+    padding: 10.3em 20.6em 10.3em 13.75em;
     border-radius: 8em;
     background-color: #f5f5f5;
+  }
+  [purpose='teams-sender'] {
+    font-size: 10.3em;
+    line-height: (13.75 / 10.3);
+    color: #616161;
   }
   // Underlined to suggest it links to the PR. It isn't interactive.
   [purpose='teams-link'] {
     text-decoration: underline;
-    // Mobile wraps the whole phrase onto its own line, as in Figma.
-    @media (max-width: 767px) {
-      display: inline-block;
+  }
+
+  // Ghost text: grey bars stand in for text the viewer doesn't need to read, as in
+  // the Slack window. Sized in em of the surrounding text.
+  [purpose='ai-demo-ghost'] {
+    display: inline-block;
+    max-width: 100%;
+    height: 0.6em;
+    border-radius: 0.3em;
+    background-color: #e1e4e8;
+    vertical-align: middle;
+  }
+  [purpose='ai-demo-pr-diff-row'].hunk [purpose='ai-demo-ghost'] {
+    background-color: #b6e3ff;
+  }
+  [purpose='ai-demo-pr-labels'] [purpose='ai-demo-ghost'].pill {
+    height: 18em;
+    padding: 0;
+    border-radius: 100em;
+    background-color: #ddf4ff;
+    font-size: 1em;
+  }
+  [purpose='ai-demo-ghost'].tab {
+    height: (8em / 13);
+    border-radius: (4em / 13);
+  }
+  // The animations, the shared ending and the pointer stack in one stage.
+  [purpose='ai-demo-stage'] {
+    position: relative;
+    width: 100%;
+  }
+  // The shared ending sits over whichever tool is showing, at the same size.
+  [purpose='ai-demo-ending'] {
+    position: absolute;
+    z-index: 2;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #1f2328;
+    &.fading-out {
+      opacity: 0;
+      transition: opacity 0.5s ease-in;
     }
+    svg {
+      display: block;
+      flex-shrink: 0;
+    }
+    code {
+      padding: 0;
+      background: none;
+      font-family: 'Roboto Mono', monospace;
+      color: inherit;
+    }
+  }
+  [purpose='ai-demo-pr-window'], [purpose='ai-demo-fleet-window'] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1em solid #d6d6d6;
+    border-radius: 11em;
+    background-color: @accent-white;
+    box-shadow: 0 18em 43em rgba(0, 0, 0, 0.12);
+  }
+  [purpose='ai-demo-pr-header'] {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10em;
+    padding: 23em 31em 0;
+    border-bottom: 1em solid #d1d9e0;
+  }
+  [purpose='ai-demo-pr-title'] {
+    padding-top: (2em / 24);
+    font-size: 24em;
+    line-height: 1.25;
+    color: #1f2328;
+    span {
+      color: #59636e;
+    }
+  }
+  [purpose='ai-demo-pr-meta'] {
+    display: flex;
+    align-items: center;
+    gap: 10em;
+    min-width: 0;
+  }
+  [purpose='ai-demo-pr-state'] {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5em;
+    padding: 5em 12em 5em 10em;
+    border-radius: 100em;
+    background-color: #1f883d;
+    transition: background-color 0.3s;
+    svg {
+      width: 14em;
+      height: 14em;
+      fill: @accent-white;
+    }
+    span {
+      font-size: 13em;
+      font-weight: 500;
+      line-height: (16 / 13);
+      color: @accent-white;
+    }
+    &.merged {
+      background-color: #8250df;
+    }
+  }
+  [purpose='ai-demo-pr-summary'] {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 13em;
+    line-height: (20 / 13);
+    color: #59636e;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    code {
+      margin: 0 (2em / 13);
+      padding: (2em / 13) (6em / 13);
+      border-radius: (6em / 13);
+      background-color: #ddf4ff;
+      font-size: (12em / 13);
+      color: #0969da;
+    }
+  }
+  [purpose='ai-demo-pr-tabs'] {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: -1em;
+    padding-top: 8em;
+  }
+  [purpose='ai-demo-pr-tab-list'] {
+    display: flex;
+  }
+  [purpose='ai-demo-pr-tab'] {
+    display: flex;
+    align-items: center;
+    gap: 7em;
+    padding: 9em 12em 10em;
+    border: 1em solid transparent;
+    border-bottom: none;
+    border-radius: 6em 6em 0 0;
+    svg {
+      width: 14em;
+      height: 14em;
+      fill: #59636e;
+    }
+    > span:not([purpose]) {
+      font-size: 13em;
+      line-height: (16 / 13);
+      white-space: nowrap;
+    }
+    &.selected {
+      position: relative;
+      border-color: #d1d9e0;
+      background-color: @accent-white;
+    }
+  }
+  [purpose='ai-demo-pr-count'] {
+    padding: (1em / 11) (6em / 11);
+    border-radius: (100em / 11);
+    background-color: #e9ecef;
+    font-size: 11em;
+    font-weight: 500;
+    line-height: (13 / 11);
+  }
+  [purpose='ai-demo-pr-diffstat'] {
+    display: flex;
+    align-items: center;
+    gap: 4em;
+    padding-bottom: 11em;
+  }
+  [purpose='ai-demo-pr-added'], [purpose='ai-demo-pr-removed'] {
+    font-size: 12em;
+    font-weight: 600;
+    color: #1a7f37;
+  }
+  [purpose='ai-demo-pr-removed'] {
+    color: #d1242f;
+  }
+  [purpose='ai-demo-pr-diffbar'] {
+    display: flex;
+    gap: 1em;
+    margin-left: 2em;
+    span {
+      width: 8em;
+      height: 8em;
+      border-radius: 1.5em;
+      background-color: #1f883d;
+      &:last-child {
+        background-color: #dfe3e8;
+      }
+    }
+  }
+  [purpose='ai-demo-pr-body'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    gap: 24em;
+    padding: 20em 31em 0;
+  }
+  // Clips the timeline, which scrolls up with a transform to keep the merge box in view.
+  [purpose='ai-demo-pr-main'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  [purpose='ai-demo-pr-timeline'] {
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.5s ease-out;
+    &.instant {
+      transition: none;
+    }
+  }
+  // The timeline: a line under the comment with an icon badge for each event.
+  [purpose='ai-demo-pr-events'] {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin-left: 56em;
+    padding: 8em 0 16em;
+    animation: ai-demo-appear 0.35s ease-out;
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 19em;
+      width: 2em;
+      background-color: #d1d9e0;
+    }
+  }
+  [purpose='ai-demo-pr-event'] {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8em;
+    padding: 8em 0;
+    animation: ai-demo-appear 0.35s ease-out;
+    &.pending {
+      visibility: hidden;
+      animation: none;
+    }
+    > img {
+      width: 20em;
+      height: 20em;
+      border-radius: 50%;
+    }
+    p {
+      min-width: 0;
+      font-size: 13em;
+      line-height: 1.4;
+      color: #59636e;
+    }
+    > div span {
+      display: block;
+      margin-top: 2em;
+      font-size: 12em;
+      color: #59636e;
+    }
+    strong {
+      font-weight: 600;
+      color: #1f2328;
+    }
+    code {
+      padding: 0 (4em / 12);
+      border-radius: (4em / 12);
+      background-color: #eff2f5;
+      font-size: (12em / 13);
+      color: #1f2328;
+    }
+    &.approved [purpose='ai-demo-pr-event-icon'] {
+      background-color: #1f883d;
+      svg {
+        fill: @accent-white;
+      }
+    }
+    &.merged [purpose='ai-demo-pr-event-icon'] {
+      background-color: #8250df;
+      svg {
+        fill: @accent-white;
+      }
+    }
+  }
+  [purpose='ai-demo-pr-event-icon'] {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28em;
+    height: 28em;
+    margin-left: 6em;
+    border: 2em solid @accent-white;
+    border-radius: 50%;
+    background-color: #eff2f5;
+    svg {
+      width: 14em;
+      height: 14em;
+      fill: #59636e;
+    }
+  }
+  // The reviewer's avatar sits in the avatar column, like the comment's.
+  [purpose='ai-demo-pr-event'] > img[purpose='ai-demo-pr-event-reviewer'] {
+    position: absolute;
+    top: 50%;
+    left: -56em;
+    width: 40em;
+    height: 40em;
+    border-radius: 50%;
+    transform: translateY(-50%);
+  }
+  // GitHub's merge box: a status tile in the avatar column, then the checks and Merge button.
+  [purpose='ai-demo-pr-merge'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 16em;
+    animation: ai-demo-appear 0.35s ease-out;
+    &.ready {
+      [purpose='ai-demo-pr-merge-tile'] {
+        background-color: #1f883d;
+      }
+      [purpose='ai-demo-pr-merge-box'] {
+        border-color: #1f883d;
+      }
+    }
+    &.merged {
+      [purpose='ai-demo-pr-merge-tile'] {
+        background-color: #8250df;
+      }
+      [purpose='ai-demo-pr-merge-box'] {
+        border-color: #8250df;
+      }
+    }
+  }
+  [purpose='ai-demo-pr-merge-tile'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40em;
+    height: 40em;
+    border-radius: 6em;
+    background-color: #6e7781;
+    transition: background-color 0.3s;
+    svg {
+      width: 20em;
+      height: 20em;
+      fill: @accent-white;
+    }
+  }
+  [purpose='ai-demo-pr-merge-box'] {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    border: 1em solid #d1d9e0;
+    border-radius: 6em;
+    transition: border-color 0.3s;
+  }
+  [purpose='ai-demo-pr-merge-section'] {
+    display: flex;
+    align-items: center;
+    gap: 12em;
+    padding: 12em 16em;
+    &.merged {
+      padding: 16em;
+    }
+    border-bottom: 1em solid #d1d9e0;
+    &:last-child {
+      border-bottom: none;
+    }
+    > div {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+    }
+    strong {
+      font-size: 14em;
+      font-weight: 600;
+      line-height: (20 / 14);
+      color: #1f2328;
+    }
+    span:not([purpose]) {
+      font-size: 12em;
+      line-height: 1.4;
+      color: #59636e;
+    }
+    [purpose='ai-demo-pr-button'] {
+      flex-shrink: 0;
+      color: #1f2328;
+    }
+  }
+  [purpose='ai-demo-pr-merge-icon'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24em;
+    height: 24em;
+    border-radius: 50%;
+    background-color: #bf8700;
+    svg {
+      width: 14em;
+      height: 14em;
+      fill: @accent-white;
+    }
+    &.success {
+      background-color: #1f883d;
+    }
+    &.failed {
+      background-color: #cf222e;
+    }
+    &.merged {
+      background-color: #8250df;
+    }
+  }
+  // GitHub's expandable sections show a chevron on the right.
+  [purpose='ai-demo-pr-chevron'] {
+    flex-shrink: 0;
+    width: 14em;
+    height: 14em;
+    color: #59636e;
+  }
+  // Under the review status: who still needs to review, or who approved.
+  [purpose='ai-demo-pr-merge-detail'] {
+    display: flex;
+    align-items: center;
+    gap: 6em;
+    padding: 8em 16em;
+    border-bottom: 1em solid #d1d9e0;
+    background-color: #f6f8fa;
+    svg {
+      width: 14em;
+      height: 14em;
+      fill: #59636e;
+      &:last-child {
+        width: 12em;
+        height: 12em;
+        fill: none;
+        color: #59636e;
+      }
+    }
+    [purpose='ai-demo-pr-detail-check'] {
+      fill: #1a7f37;
+    }
+    span {
+      font-size: 12em;
+      font-weight: 500;
+      color: #59636e;
+    }
+  }
+  [purpose='ai-demo-pr-merge-footer'] {
+    display: flex;
+    align-items: center;
+    gap: 10em;
+    padding: 12em 16em;
+    background-color: #f6f8fa;
+    p {
+      font-size: 12em;
+      color: #59636e;
+      @media (max-width: 991px) {
+        display: none;
+      }
+    }
+  }
+  [purpose='ai-demo-pr-card'] {
+    padding: 14em 16em;
+    border: 1em solid #d1d9e0;
+    border-radius: 6em;
+    animation: ai-demo-appear 0.35s ease-out;
+    > p {
+      font-size: 13em;
+      line-height: 1.4;
+    }
+  }
+  // The description is the author's opening comment, as on GitHub.
+  [purpose='ai-demo-pr-comment'] {
+    display: flex;
+    align-items: flex-start;
+    gap: 16em;
+    animation: ai-demo-appear 0.35s ease-out;
+    > img {
+      width: 40em;
+      height: 40em;
+      border-radius: 50%;
+    }
+    [purpose='ai-demo-pr-card'].comment {
+      flex: 1;
+      min-width: 0;
+      padding: 0;
+      overflow: hidden;
+      animation: none;
+    }
+  }
+  [purpose='ai-demo-pr-comment-header'] {
+    padding: 8em 16em;
+    border-bottom: 1em solid #d1d9e0;
+    background-color: #f6f8fa;
+    p {
+      font-size: 13em;
+      line-height: 1.4;
+      color: #59636e;
+    }
+    strong {
+      font-weight: 600;
+      color: #1f2328;
+    }
+  }
+  [purpose='ai-demo-pr-comment-body'] {
+    padding: 12em 16em 14em;
+    > p {
+      font-size: 13em;
+      line-height: 1.4;
+    }
+  }
+  [purpose='ai-demo-pr-files'] {
+    display: flex;
+    flex-direction: column;
+    gap: 4em;
+    margin: 8em 0 0;
+    padding: 0;
+    list-style: none;
+    li {
+      display: flex;
+      align-items: center;
+      height: 16em;
+      margin: 0;
+      font-size: 1em;
+      line-height: normal;
+    }
+    code {
+      font-size: 12em;
+      color: #1f2328;
+    }
+  }
+  [purpose='ai-demo-pr-deploy-state'] {
+    flex-shrink: 0;
+    padding: 0 (7em / 12);
+    border: (1em / 12) solid #bf8700;
+    border-radius: (100em / 12);
+    font-size: 12em;
+    font-weight: 500;
+    line-height: (20 / 12);
+    color: #9a6700;
+    white-space: nowrap;
+    transition: border-color 0.3s, color 0.3s;
+    &.active {
+      border-color: #1a7f37;
+      color: #1a7f37;
+    }
+  }
+  [purpose='ai-demo-pr-icon-check'] {
+    stroke: #1a7f37;
+  }
+  [purpose='ai-demo-pr-button'] {
+    display: inline-flex;
+    align-items: center;
+    height: (32em / 13);
+    padding: 0 (14em / 13);
+    border: (1em / 13) solid #d1d9e0;
+    border-radius: (6em / 13);
+    background-color: #f6f8fa;
+    font-size: 13em;
+    font-weight: 500;
+    color: #8c959f;
+    white-space: nowrap;
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+    &.primary {
+      border-color: #1a7f37;
+      background-color: #1f883d;
+      color: @accent-white;
+    }
+  }
+  [purpose='ai-demo-pr-review-panel'] {
+    position: absolute;
+    z-index: 1;
+    left: 153em;
+    bottom: 44em;
+    width: 362em;
+    display: flex;
+    flex-direction: column;
+    gap: 12em;
+    padding: 14em 16em;
+    border: 1em solid #d1d9e0;
+    border-radius: 8em;
+    background-color: @accent-white;
+    box-shadow: 0 8em 24em rgba(31, 35, 40, 0.15);
+    animation: ai-demo-appear 0.25s ease-out;
+    > strong {
+      font-size: 13em;
+      font-weight: 600;
+    }
+    [purpose='ai-demo-pr-button'] {
+      align-self: flex-end;
+    }
+  }
+  // Review on the Files changed tab: the review panel drops down from the toolbar.
+  [purpose='ai-demo-pr-review-panel'].dropdown {
+    top: 52em;
+    right: 31em;
+    bottom: auto;
+    left: auto;
+  }
+  [purpose='ai-demo-pr-files-view'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  [purpose='ai-demo-pr-files-toolbar'] {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16em;
+    padding: 12em 31em;
+    border-bottom: 1em solid #d1d9e0;
+    [purpose='ai-demo-pr-button'] svg {
+      width: (16em / 13);
+      height: (16em / 13);
+      margin-left: (6em / 13);
+      color: @accent-white;
+    }
+  }
+  [purpose='ai-demo-pr-select'] {
+    display: inline-flex;
+    align-items: center;
+    gap: (6em / 13);
+    height: (32em / 13);
+    padding: 0 (10em / 13) 0 (12em / 13);
+    border: (1em / 13) solid #d1d9e0;
+    border-radius: (6em / 13);
+    background-color: #f6f8fa;
+    font-size: 13em;
+    font-weight: 500;
+    color: #1f2328;
+    svg {
+      width: (16em / 13);
+      height: (16em / 13);
+      color: #59636e;
+    }
+  }
+  [purpose='ai-demo-pr-file-list'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12em;
+    overflow: hidden;
+    padding: 16em 31em 0;
+  }
+  [purpose='ai-demo-pr-file'] {
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1em solid #d1d9e0;
+    border-radius: 6em;
+    animation: ai-demo-appear 0.35s ease-out;
+  }
+  [purpose='ai-demo-pr-file-header'] {
+    display: flex;
+    align-items: center;
+    gap: 8em;
+    height: 36em;
+    padding: 0 12em 0 10em;
+    background-color: #f6f8fa;
+    > svg {
+      width: 16em;
+      height: 16em;
+      color: #59636e;
+    }
+    code {
+      overflow: hidden;
+      font-size: 12em;
+      color: #1f2328;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+  [purpose='ai-demo-pr-viewed-box'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: (6em / 12);
+    margin-left: auto;
+    padding: (4em / 12) (10em / 12) (4em / 12) (8em / 12);
+    border: (1em / 12) solid #d1d9e0;
+    border-radius: (6em / 12);
+    background-color: @accent-white;
+    font-size: 12em;
+    svg {
+      width: (12em / 12);
+      height: (12em / 12);
+    }
+  }
+  // Split diff: old file on the left, new file on the right.
+  [purpose='ai-demo-pr-diff-row'] {
+    display: grid;
+    grid-template-columns: 40em 18em 1fr 40em 18em 1fr;
+    > span, > code {
+      padding: 3em 0;
+    }
+    > span {
+      font-family: 'Roboto Mono', monospace;
+      font-size: 11em;
+      line-height: (16 / 11);
+      color: #59636e;
+      text-align: right;
+      padding: (2em / 11) (8em / 11) (2em / 11) 0;
+      &:nth-child(2), &:nth-child(5) {
+        padding-right: 0;
+        padding-left: (6em / 11);
+        text-align: left;
+        color: #1a7f37;
+      }
+    }
+    > code {
+      min-width: 0;
+      padding: (2em / 12) (8em / 12) (2em / 12) 0;
+      font-size: 12em;
+      line-height: (16 / 12);
+      color: #1f2328;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    > :nth-child(4) {
+      border-left: 1em solid #d1d9e0;
+    }
+    &.add {
+      > :nth-child(-n+3) {
+        background-color: #f6f8fa;
+      }
+      > :nth-child(4) {
+        background-color: #aceebb;
+      }
+      > :nth-child(5), > :nth-child(6) {
+        background-color: #dafbe1;
+      }
+    }
+    // Too narrow for side by side, so tablet (and phones) use GitHub's unified view:
+    // old and new line numbers, then the new text.
+    @media (max-width: 991px) {
+      grid-template-columns: 40em 40em 18em 1fr;
+      > :nth-child(2), > :nth-child(3) {
+        display: none;
+      }
+      > :nth-child(4) {
+        border-left: none;
+      }
+      &.add > :nth-child(1) {
+        background-color: #aceebb;
+      }
+    }
+    &.hunk {
+      display: block;
+      padding: 2em 0 2em 58em;
+      @media (max-width: 991px) {
+        padding-left: 98em;
+      }
+      background-color: #ddf4ff;
+      code {
+        font-size: 12em;
+        line-height: (16 / 12);
+        color: #59636e;
+      }
+    }
+  }
+  [purpose='ai-demo-pr-comment-box'] {
+    display: block;
+    height: (48em / 12);
+    padding: (8em / 12) (10em / 12);
+    border: (1em / 12) solid #d1d9e0;
+    border-radius: (6em / 12);
+    background-color: #f6f8fa;
+    font-size: 12em;
+    color: #59636e;
+  }
+  [purpose='ai-demo-pr-radio'] {
+    display: flex;
+    gap: 8em;
+    svg {
+      width: 14em;
+      height: 14em;
+      margin-top: 1em;
+    }
+    > div {
+      display: flex;
+      flex-direction: column;
+      gap: 2em;
+    }
+    strong {
+      font-size: 12em;
+      font-weight: 600;
+    }
+    > div > span {
+      font-size: 11em;
+      color: #59636e;
+    }
+  }
+  [purpose='ai-demo-pr-sidebar'] {
+    flex-shrink: 0;
+    width: 190em;
+    display: flex;
+    flex-direction: column;
+    // Hidden but still taking its space, so the comment doesn't reflow when it appears.
+    opacity: 0;
+    &.shown {
+      opacity: 1;
+      animation: ai-demo-appear 0.35s ease-out;
+    }
+    @media (max-width: 991px) {
+      width: 150em;
+    }
+  }
+  [purpose='ai-demo-pr-sidebar-label'] {
+    margin-bottom: (10em / 12);
+    font-size: 12em;
+    font-weight: 600;
+    line-height: (15 / 12);
+    color: #59636e;
+  }
+  [purpose='ai-demo-pr-reviewer'] {
+    display: flex;
+    align-items: center;
+    gap: 8em;
+    padding-bottom: 14em;
+    img {
+      width: 20em;
+      height: 20em;
+      border-radius: 50%;
+    }
+    > span:not([purpose]) {
+      margin-right: auto;
+      font-size: 13em;
+      font-weight: 600;
+    }
+    svg {
+      width: 14em;
+      height: 14em;
+    }
+  }
+  [purpose='ai-demo-pr-pending-dot'] {
+    width: 8em;
+    height: 8em;
+    border-radius: 50%;
+    background-color: #bf8700;
+  }
+  [purpose='ai-demo-pr-sidebar-divider'] {
+    display: block;
+    height: 1em;
+    margin-bottom: 14em;
+    background-color: #d1d9e0;
+  }
+  [purpose='ai-demo-pr-labels'] {
+    display: flex;
+    gap: 6em;
+    span {
+      padding: (2em / 12) (8em / 12);
+      border-radius: (100em / 12);
+      background-color: #ddf4ff;
+      font-size: 12em;
+      font-weight: 500;
+      color: #0969da;
+    }
+  }
+  // Fleet's Policies page, laid out in Fleet's own pixels (1em inside it) and
+  // scaled to the demo window.
+  // Apps swap like windows: the outgoing one (shadow included) shrinks away as
+  // the next one pops open, slightly after it so the two read as one swap.
+  // When the demo loops, the tool just fades back in.
+  [purpose='ai-demo-pr-window'], [purpose='ai-demo-fleet-window'] {
+    animation: ai-demo-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.16s both;
+  }
+  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'], [purpose='slack-animation'], [purpose='teams-animation'], [purpose='ai-demo-pr-window'] {
+    &.popped-out {
+      animation: ai-demo-pop-out 0.28s ease-in both;
+    }
+  }
+  [purpose='claude-code-animation'], [purpose='cursor-animation'], [purpose='copilot-animation'], [purpose='codex-animation'], [purpose='slack-animation'], [purpose='teams-animation'] {
+    &.popping-in {
+      animation: ai-demo-fade-in 0.5s ease-out both;
+    }
+  }
+  // Scaled to 86% so its text sits closer in size to the Slack and GitHub windows.
+  // Colors, sizes and weights follow Fleet's own frontend styles.
+  [purpose='ai-demo-fleet-page'] {
+    width: (940em / 0.86);
+    height: (576em / 0.86);
+    display: flex;
+    flex-direction: column;
+    font-size: 0.86em;
+    color: #515774;
+    background-color: @accent-white;
+    background-image: linear-gradient(180deg, #eff6fa 0%, @accent-white 100%);
+    background-size: 100% 150em;
+    background-repeat: no-repeat;
+    @media (max-width: 991px) {
+      width: (752em / 0.86);
+    }
+  }
+  [purpose='ai-demo-fleet-nav'] {
+    flex-shrink: 0;
+    display: flex;
+    align-items: stretch;
+    height: 50em;
+    border-bottom: 1em solid #e2e4ea;
+    background-color: @accent-white;
+    > img {
+      align-self: center;
+      width: 24em;
+      height: 24em;
+      margin: 0 20em;
+    }
+    > span:not([purpose]) {
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 0 (24em / 14);
+      font-size: 14em;
+      color: #515774;
+      &.selected {
+        font-weight: 600;
+        color: #192147;
+        &::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: (1em / 14);
+          background-color: #192147;
+        }
+      }
+    }
+  }
+  [purpose='ai-demo-fleet-gitops'] {
+    display: flex;
+    align-items: center;
+    gap: 6em;
+    margin-left: auto;
+    svg {
+      width: 12em;
+      height: 12em;
+      fill: #515774;
+    }
+    span {
+      font-size: 12em;
+      color: #515774;
+    }
+  }
+  [purpose='ai-demo-fleet-account'] {
+    display: flex;
+    align-items: center;
+    gap: 6em;
+    margin: 0 24em 0 24em;
+    color: #192147;
+    img {
+      width: 24em;
+      height: 24em;
+      border-radius: 50%;
+    }
+    svg {
+      width: 16em;
+      height: 16em;
+    }
+  }
+  [purpose='ai-demo-fleet-content'] {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 32em 40em 0;
+  }
+  [purpose='ai-demo-fleet-title'] {
+    display: flex;
+    align-items: center;
+    gap: (8em / 24);
+    font-size: 24em;
+    font-weight: 600;
+    line-height: normal;
+    color: #192147;
+    svg {
+      width: (16em / 24);
+      height: (16em / 24);
+      margin-left: (4em / 24);
+    }
+  }
+  [purpose='ai-demo-fleet-description'] {
+    margin-top: (16em / 14);
+    font-size: 14em;
+    color: #515774;
+  }
+  [purpose='ai-demo-fleet-toolbar'] {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24em;
+    > span:first-child {
+      font-size: 14em;
+      font-weight: 600;
+      color: #192147;
+    }
+  }
+  [purpose='ai-demo-fleet-search'] {
+    display: flex;
+    align-items: center;
+    gap: (8em / 14);
+    width: (280em / 14);
+    height: (36em / 14);
+    padding: 0 (12em / 14);
+    border: (1em / 14) solid #e2e4ea;
+    border-radius: (6em / 14);
+    background-color: @accent-white;
+    font-size: 14em;
+    color: #192147;
+    svg {
+      width: (16em / 14);
+      height: (16em / 14);
+    }
+  }
+  [purpose='ai-demo-fleet-table'] {
+    margin-top: 16em;
+    overflow: hidden;
+    border: 1em solid #e2e4ea;
+    border-radius: 8em;
+    background-color: @accent-white;
+  }
+  [purpose='ai-demo-fleet-row'] {
+    display: grid;
+    grid-template-columns: 1fr 190em 190em;
+    align-items: center;
+    height: 40em;
+    border-top: 1em solid #e2e4ea;
+    > span {
+      display: block;
+      overflow: hidden;
+      padding: 0 (24em / 14);
+      line-height: (39 / 14);
+      font-size: 14em;
+      font-weight: 600;
+      color: #515774;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
+    }
+    &.header {
+      border-top: none;
+      background-color: #f9fafc;
+      > span {
+        display: flex;
+        align-items: center;
+        gap: (6em / 12);
+        height: 100%;
+        padding: 0 (24em / 12);
+        font-size: 12em;
+        color: #192147;
+        & + span {
+          border-left: (1em / 12) solid #e2e4ea;
+        }
+      }
+      svg {
+        width: (16em / 12);
+        height: (16em / 12);
+      }
+    }
+  }
+  [purpose='ai-demo-fleet-cue'] {
+    position: absolute;
+    top: (74em / 12);
+    right: (30em / 12);
+    display: flex;
+    align-items: center;
+    gap: (6em / 12);
+    padding: (7em / 12) (14em / 12) (7em / 12) (12em / 12);
+    border-radius: (100em / 12);
+    background-color: fade(@core-fleet-black, 90%);
+    font-size: 12em;
+    font-weight: 500;
+    color: @accent-white;
+    animation: ai-demo-fade-in 0.4s ease-out;
+    svg {
+      width: (14em / 12);
+      height: (14em / 12);
+    }
+  }
+  // Moves with a transform; the component sets the duration for each move.
+  [purpose='ai-demo-pointer'] {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: 0;
+    width: 20px;
+    height: 28px;
+    opacity: 0;
+    pointer-events: none;
+    // Scales from the tip when pressed, so the tip stays on its target.
+    transform-origin: 1px 1px;
+    transition-property: transform, opacity;
+    transition-timing-function: cubic-bezier(0.45, 0.05, 0.25, 1);
+    &.visible {
+      opacity: 1;
+    }
+  }
+  @keyframes ai-demo-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes ai-demo-pop-out {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.92); }
+  }
+  @keyframes ai-demo-pop {
+    0% { opacity: 0; transform: scale(0.86); }
+    40% { opacity: 1; }
+    100% { opacity: 1; transform: scale(1); }
   }
 
   // The component reveals one message at a time and moves the thread up to

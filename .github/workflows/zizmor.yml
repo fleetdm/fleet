@@ -29,7 +29,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-# Declare default permissions as none; the job below grants exactly what it needs.
 permissions: {}
 
 # Pin the zizmor version so a new release adding an audit rule cannot unexpectedly break

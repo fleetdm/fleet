@@ -1,0 +1,1 @@
+- Fixed `POST /api/latest/fleet/login` answering `401 Authentication failed` when the database could not be reached. Login now answers with a `500`, so users and API clients no longer mistake a database outage for wrong credentials.

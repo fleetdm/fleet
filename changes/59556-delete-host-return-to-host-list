@@ -1,0 +1,1 @@
+- Fixed deleting a host from **Host details** taking you to **Hosts** with **All fleets** selected. You now return to the host list you came from, with its fleet and filters, the same as **Back to all hosts**.

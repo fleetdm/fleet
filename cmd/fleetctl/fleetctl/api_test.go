@@ -76,6 +76,7 @@ func TestRunApiCommand(t *testing.T) {
     "patch_when_closed": false,
     "notify_before_patching": false,
     "patch_deadline": false,
+    "force_patch": false,
     "created_at": "0001-01-01T00:00:00Z",
     "updated_at": "0001-01-01T00:00:00Z",
     "passing_host_count": 0,

@@ -1,0 +1,1 @@
+- Fixed GitOps and `fleetctl apply` not logging a `created_label` activity for new labels, and missing `edited_label` activities for host-membership-only changes, on instances with a MySQL read replica.

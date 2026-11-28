@@ -23,13 +23,13 @@ What `fleetctl generate-gitops` exports (cmd/fleetctl/fleetctl/generate_gitops.g
 | macOS EULA, Windows EULA | `lib/eula/` | `platforms/<os>/setup-experience/` | ✅ | – |
 | `certificate_authorities` | exported, secrets as `# TODO` | exported, secrets as variables; dry run uses the real values | ⬆️ | – |
 | `microsoft_graph_credentials` | exported, `client_secret` as `# TODO` | exported without `client_secret`, which keeps Fleet's stored secret | ⬆️ | – |
-| Enroll secrets | `# TODO` placeholder, or plaintext with `--insecure` | variables; left out when secrets are a GitOps exception | ⬆️ | round trip |
+| Enroll secrets | `# TODO` placeholder, or plaintext with `--insecure`; left out when secrets are a GitOps exception | variables; left out when secrets are a GitOps exception | ⬆️ | round trip |
 | `yara_rules` | not exported (warning, writes an empty value) | rule files exported to `platforms/all/yara-rules/`; fleetctl currently rejects `yara_rules[].path`, so the dry run fails | ⚠️ fleetctl bug | – |
 | `smtp_settings`, `gitops` | not exported | not exported (omitting them keeps Fleet's values) | ✅ | – |
 | `agent_options` | exported | exported (global and per fleet) | ✅ | round trip |
 | `custom_host_vitals` | exported | exported | ✅ | round trip |
 | Labels (dynamic, manual, host vitals) | exported inline | `labels/*.yml` (the template's glob), fleet labels in `labels/<fleet>/`; template label files reused when the label exists | ✅ | round trip |
-| Labels managed in the UI (GitOps exception) | not considered: writes `labels:`, which fleetctl rejects | `labels:` commented out, as the template describes | ⬆️ | dry run |
+| Labels managed in the UI (GitOps exception) | `labels:` left out, with a note | `labels:` commented out, as the template describes | ✅ | dry run |
 
 ## Controls
 
@@ -77,7 +77,7 @@ What `fleetctl generate-gitops` exports (cmd/fleetctl/fleetctl/generate_gitops.g
 | Fleet-maintained app scripts that are older copies of the catalog's | written as custom scripts, which stops Fleet's updates to them | left out and listed for review (`--keep-fma-scripts` keeps them) | ⬆️ | dogfood |
 | App Store and Google Play apps (platform, VPP location with more than one token, versions, managed configuration, auto-update window) | exported | exported | ✅ | – |
 | Icons stored in Fleet | `lib/<fleet>/icons/` | `platforms/all/icons/` | ✅ | – |
-| Software managed in the UI (GitOps exception) | not considered | `software:` commented out | ⬆️ | dry run |
+| Software managed in the UI (GitOps exception) | `software:` left out, with a note | `software:` commented out | ✅ | dry run |
 
 ## Behavior
 

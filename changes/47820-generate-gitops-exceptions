@@ -1,0 +1,1 @@
+- Fixed `fleetctl generate-gitops` writing `labels`, `secrets`, and `software` keys when they're excepted from GitOps management, which made `fleetctl gitops` reject the generated files. The excepted keys are now left out, with a note for each.

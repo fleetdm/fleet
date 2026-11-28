@@ -489,12 +489,10 @@ describe("PolicyForm - component", () => {
         />
       );
 
-      // Validation runs on editor blur / submit, not on mount: the user
-      // should not see a syntax error before they interact with the editor.
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      // The stored policy is validated as soon as it loads.
       expect(
-        screen.queryByText(/Syntax error\. Please review before saving\./)
-      ).not.toBeInTheDocument();
+        await screen.findByText(/Please review before saving\./)
+      ).toBeInTheDocument();
 
       // Save stays enabled for syntactically invalid (but non-empty) SQL.
       const saveButton = screen.getByRole("button", { name: "Save" });
@@ -1155,6 +1153,7 @@ describe("PolicyForm - component", () => {
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
             automation_type: "software",
+            force_patch: false,
             patch_when_closed: false,
             notify_before_patching: false,
             patch_deadline: true,
@@ -1192,6 +1191,7 @@ describe("PolicyForm - component", () => {
 
         await waitFor(() =>
           expect(updatePolicySpy).toHaveBeenCalledWith(teamPatchPolicy.id, {
+            force_patch: false,
             patch_when_closed: false,
             notify_before_patching: false,
             patch_deadline: false,

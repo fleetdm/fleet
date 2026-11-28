@@ -1,0 +1,1 @@
+* Fixed ChatGPT Desktop installs requiring administrator authentication for self-updates by restoring user ownership of the app bundle.

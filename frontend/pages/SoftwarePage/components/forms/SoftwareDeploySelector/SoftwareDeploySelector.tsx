@@ -39,7 +39,7 @@ export const getNextEndUserExperience = (
   return prevEndUserExperience;
 };
 
-/** Returns the four policy flags derived from the deploy selector state. */
+/** Returns the policy flags derived from the deploy selector state. */
 export const getPatchPolicyFlags = (
   patchOption: PatchOption,
   endUserExperience: EndUserExperience = "deadline"
@@ -49,6 +49,7 @@ export const getPatchPolicyFlags = (
   const deadlineActive =
     patchOption === "force" && endUserExperience === "deadline";
   return {
+    force_patch: patchOption === "force" && endUserExperience === "immediate",
     patch_when_closed: patchOption === "closed",
     notify_before_patching: notifyActive,
     patch_deadline: deadlineActive,

@@ -88,7 +88,7 @@ func (c *Client) windowsProfileDeletionWarning(
 
 // Get the contents of a saved profile.
 func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
-	verb, path := "GET", "/api/latest/fleet/configuration_profiles/"+profileID
+	verb, path := "GET", "/api/latest/fleet/configuration_profiles/"+url.PathEscape(profileID)
 	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
@@ -112,7 +112,7 @@ func (c *Client) GetProfileContents(profileID string) ([]byte, error) {
 // or nil if it has none. GetProfileContents can't serve this because alt=media
 // returns the declaration file itself, not the payload the activation rides on.
 func (c *Client) GetProfileActivation(profileID string) ([]byte, error) {
-	verb, path := "GET", "/api/latest/fleet/configuration_profiles/"+profileID
+	verb, path := "GET", "/api/latest/fleet/configuration_profiles/"+url.PathEscape(profileID)
 	var responseBody getMDMConfigProfileResponse
 	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (c *Client) ListDDMAssets(teamID *uint) ([]*fleet.DDMAsset, error) {
 
 // DownloadDDMAsset returns the raw JSON contents of the DDM asset with the given UUID.
 func (c *Client) DownloadDDMAsset(assetUUID string) ([]byte, error) {
-	verb, path := "GET", "/api/latest/fleet/assets/"+assetUUID
+	verb, path := "GET", "/api/latest/fleet/assets/"+url.PathEscape(assetUUID)
 	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)

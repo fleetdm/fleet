@@ -209,6 +209,7 @@ module.exports = {
             systemScreenlockPolicies: [],// Sending an empty array of screenlock policies.
             isManaged: false, // Defaulting to false
             autoUpdatesEnabled: false, // Always sending this value as false
+            owner: null, // Defaults to null. If the Fleet instance knows the email of this host's end user, we'll set this value to that email.
           };
 
           // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
@@ -239,6 +240,26 @@ module.exports = {
           // If an error occured when sending a request to get detailed information about a host, skip this host for this run.
           if(!detailedInformationAboutThisHost) {
             return;
+          }
+
+          // Set the owner of this host to the email address of the host's end user.
+          // We'll use the first email address we find in this order of preference: the IdP username, then an email set via the API or a custom installer.
+          let endUsersOfThisMacOsHost = detailedInformationAboutThisHost.host.end_users || [];
+          let idpEndUserOfThisMacOsHost = _.find(endUsersOfThisMacOsHost, (endUser)=>{
+            return _.isString(endUser.idp_username) && endUser.idp_username.includes('@');
+          });
+          if(idpEndUserOfThisMacOsHost) {
+            macOsHostToSyncWithVanta.owner = idpEndUserOfThisMacOsHost.idp_username;
+          } else {
+            let otherEmailsOfThisMacOsHost = _.flatten(_.map(endUsersOfThisMacOsHost, (endUser)=>{
+              return endUser.other_emails || [];
+            }));
+            let customEmailForThisMacOsHost = _.find(otherEmailsOfThisMacOsHost, (otherEmail)=>{
+              return otherEmail.source === 'custom' && _.isString(otherEmail.email) && otherEmail.email.includes('@');
+            });
+            if(customEmailForThisMacOsHost) {
+              macOsHostToSyncWithVanta.owner = customEmailForThisMacOsHost.email;
+            }
           }
 
           if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
@@ -319,6 +340,7 @@ module.exports = {
             isManaged: false, // Defaulting to false, if the host is enrolled in an MDM, we'll set this value to true.
             autoUpdatesEnabled: false, // Defaulting this value to false.
             lastEnrolledTimestamp: host.last_enrolled_at,
+            owner: null, // Defaults to null. If the Fleet instance knows the email of this host's end user, we'll set this value to that email.
           };
 
           // If the host has an mdm property, set the `isManaged` parameter to true if the hosts's mdm enrollment_status is either "On (automatic)" or "On (manual)")
@@ -345,6 +367,25 @@ module.exports = {
             return;
           }
 
+          // Set the owner of this host to the email address of the host's end user.
+          // We'll use the first email address we find in this order of preference: the IdP username (which includes the Entra join user), then an email set via the API or a custom installer.
+          let endUsersOfThisWindowsHost = detailedInformationAboutThisHost.host.end_users || [];
+          let idpEndUserOfThisWindowsHost = _.find(endUsersOfThisWindowsHost, (endUser)=>{
+            return _.isString(endUser.idp_username) && endUser.idp_username.includes('@');
+          });
+          if(idpEndUserOfThisWindowsHost) {
+            windowsHostToSyncWithVanta.owner = idpEndUserOfThisWindowsHost.idp_username;
+          } else {
+            let otherEmailsOfThisWindowsHost = _.flatten(_.map(endUsersOfThisWindowsHost, (endUser)=>{
+              return endUser.other_emails || [];
+            }));
+            let customEmailForThisWindowsHost = _.find(otherEmailsOfThisWindowsHost, (otherEmail)=>{
+              return otherEmail.source === 'custom' && _.isString(otherEmail.email) && otherEmail.email.includes('@');
+            });
+            if(customEmailForThisWindowsHost) {
+              windowsHostToSyncWithVanta.owner = customEmailForThisWindowsHost.email;
+            }
+          }
 
           if (detailedInformationAboutThisHost.host.disk_encryption_enabled !== undefined && detailedInformationAboutThisHost.host.disk_encryption_enabled !== null) {
             // Build a drive object for this host, using the host's disk_encryption_enabled value to set the boolean values for `encrytped` and `filevaultEnabled`

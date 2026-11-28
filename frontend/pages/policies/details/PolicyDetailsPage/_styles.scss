@@ -54,6 +54,11 @@
     .critical-policy-icon {
       flex-shrink: 0;
     }
+
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
   }
 
   &__author-info {

@@ -1,0 +1,10 @@
+{
+  "name": "Herdr",
+  "unique_identifier": "dev.herdr.app",
+  "token": "herdr-app",
+  "installer_format": "dmg",
+  "slug": "herdr/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

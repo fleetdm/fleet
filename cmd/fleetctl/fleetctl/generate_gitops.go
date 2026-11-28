@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/urfave/cli/v2"
@@ -65,7 +65,11 @@ type Software struct {
 type teamToProcess struct {
 	ID   *uint
 	Team *fleet.Team
+	// FileName names both fleets/<FileName>.yml and lib/<FileName>/.
+	FileName string
 }
+
+const unassignedFileName = "unassigned"
 
 type generateGitopsClient interface {
 	GetAppConfig() (*fleet.EnrichedAppConfig, error)
@@ -305,6 +309,10 @@ type GenerateGitopsCommand struct {
 
 	vppTokens       []*fleet.VPPTokenDB
 	vppTokensLoaded bool
+
+	// Excepted types: fleetctl gitops rejects their keys, so they're left out.
+	exceptions fleet.GitOpsExceptions
+	leftOut    fleet.GitOpsExceptions
 }
 
 func generateGitopsCommand() *cli.Command {
@@ -319,7 +327,7 @@ func generateGitopsCommand() *cli.Command {
 			debugFlag(),
 			&cli.BoolFlag{
 				Name:  "insecure",
-				Usage: "Output sensitive information in plaintext.",
+				Usage: "Include enroll secrets, certificate authority secrets, and SSO and end user authentication metadata in plaintext. Enroll secrets excepted from GitOps management are left out. Secrets the Fleet API never returns stay as TODO comments. Don't commit the output.",
 				Value: false,
 			},
 			&cli.StringFlag{
@@ -427,6 +435,10 @@ func (cmd *GenerateGitopsCommand) Run() error {
 	if err != nil {
 		return err
 	}
+	// Free doesn't enforce exceptions.
+	if cmd.AppConfig.License.IsPremium() {
+		cmd.exceptions = cmd.AppConfig.GitOpsConfig.Exceptions
+	}
 
 	// Gather the list of teams to process, which may include some
 	// virtual teams (i.e. global and no-team).
@@ -447,8 +459,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		noTeam = teamToProcess{
-			ID:   ptr.Uint(0),
-			Team: noTeamData,
+			ID:       new(uint(0)),
+			Team:     noTeamData,
+			FileName: unassignedFileName,
 		}
 	}
 
@@ -464,16 +477,25 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting fleets: %s\n", err)
 			return ErrGeneric
 		}
+		// Assigned from every fleet, so a single-fleet export writes the same
+		// file as a full export.
+		fileNames := fleetFileNames(teams)
 		// If a specific team is requested, find it.
-		if cmd.CLI.String(fleetFlagName) != "" {
-			transformedSelectedName := generateFilename(cmd.CLI.String(fleetFlagName))
-			for _, team := range teams {
-				if transformedSelectedName == generateFilename(team.Name) {
-					teamsToProcess = []teamToProcess{{
-						ID:   &team.ID,
-						Team: &team,
-					}}
-				}
+		if selected := cmd.CLI.String(fleetFlagName); selected != "" {
+			i := slices.IndexFunc(teams, func(t fleet.Team) bool { return t.Name == selected })
+			if i < 0 {
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return strings.EqualFold(t.Name, selected) })
+			}
+			if i < 0 {
+				selectedFileName := generateFilename(selected)
+				i = slices.IndexFunc(teams, func(t fleet.Team) bool { return fileNames[t.ID] == selectedFileName })
+			}
+			if i >= 0 {
+				teamsToProcess = []teamToProcess{{
+					ID:       &teams[i].ID,
+					Team:     &teams[i],
+					FileName: fileNames[teams[i].ID],
+				}}
 			}
 			if len(teamsToProcess) == 0 {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Fleet %s not found\n", cmd.CLI.String(fleetFlagName))
@@ -484,8 +506,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			teamsToProcess = make([]teamToProcess, len(teams)+2)
 			for i, team := range teams {
 				teamsToProcess[i] = teamToProcess{
-					ID:   &team.ID,
-					Team: &team,
+					ID:       &team.ID,
+					Team:     &team,
+					FileName: fileNames[team.ID],
 				}
 			}
 			teamsToProcess[len(teams)] = noTeam
@@ -508,7 +531,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			if team.ID == 0 {
 				displayName = "Unassigned"
 			}
-			teamFileName = generateFilename(displayName)
+			teamFileName = teamToProcess.FileName
 			fileName = "fleets/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": displayName,
@@ -569,12 +592,17 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		// Generate labels.
 		if team == nil || team.ID != 0 {
-			labels, err := cmd.generateLabels(team)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
-				return ErrGeneric
+			if cmd.exceptions.Labels {
+				cmd.leftOut.Labels = true
+			} else {
+				labels, err := cmd.generateLabels(team)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
+					return ErrGeneric
+				}
+				// nolint:nilaway // we want to include "labels: null" in the output if there are no labels.
+				cmd.FilesToWrite[fileName].(map[string]any)["labels"] = labels
 			}
-			cmd.FilesToWrite[fileName].(map[string]any)["labels"] = labels
 		}
 
 		// Generate controls.
@@ -589,7 +617,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 
 		// Generate software.
-		if team != nil {
+		if team != nil && cmd.exceptions.Software {
+			cmd.leftOut.Software = true
+			if err := cmd.listSoftwareForPolicies(fileName, team.ID); err != nil {
+				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software for %s: %s\n", teamFileName, err)
+				return ErrGeneric
+			}
+		} else if team != nil {
 			software, err := cmd.generateSoftware(
 				fileName,
 				team.ID,
@@ -660,10 +694,13 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		case "":
 			fileName = "default.yml"
 		case "unassigned":
-			fileName = "fleets/unassigned.yml"
+			fileName = "fleets/" + unassignedFileName + ".yml"
 		default:
-			teamFileName := generateFilename(cmd.CLI.String(fleetFlagName))
-			fileName = "fleets/" + teamFileName + ".yml"
+			// Free ignores --fleet and exports only default.yml.
+			fileName = "fleets/" + generateFilename(cmd.CLI.String(fleetFlagName)) + ".yml"
+			if teamsToProcess[0].ID != nil {
+				fileName = "fleets/" + teamsToProcess[0].FileName + ".yml"
+			}
 		}
 
 		// Apply renameto tags and marshal/unmarshal the data to standardize the keys.
@@ -678,7 +715,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			return ErrGeneric
 		}
 		value, ok := getValueAtKey(data, cmd.CLI.String("key"))
+		exception, excepted := cmd.leftOutException(fileName, cmd.CLI.String("key"))
 		if !ok {
+			if excepted {
+				fmt.Fprintln(cmd.CLI.App.ErrWriter, cmd.exceptedNote(exception))
+				return nil
+			}
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Key %s not found in %s\n", cmd.CLI.String("key"), fileName)
 			return nil
 		}
@@ -693,6 +735,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 		}
 		fmt.Fprintf(cmd.CLI.App.Writer, "%s", string(b))
+		if excepted {
+			fmt.Fprintln(cmd.CLI.App.ErrWriter, cmd.exceptedNote(exception))
+		}
 		return nil
 	}
 
@@ -760,6 +805,16 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.Writer, " • %s: %s\n", secretWarning.Filename, secretWarning.Key)
 		}
 		fmt.Fprintf(cmd.CLI.App.Writer, "\n")
+	}
+
+	if cmd.leftOut.Labels {
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{Note: cmd.exceptedNote("labels")})
+	}
+	if cmd.leftOut.Secrets {
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{Note: cmd.exceptedNote("secrets")})
+	}
+	if cmd.leftOut.Software {
+		cmd.Messages.Notes = append(cmd.Messages.Notes, Note{Note: cmd.exceptedNote("software")})
 	}
 
 	if cmd.CLI.String(fleetFlagName) == "global" || cmd.CLI.String(fleetFlagName) == "" {
@@ -834,6 +889,34 @@ func uniqueFilename(fileName string, taken map[string]bool) string {
 	}
 	taken[candidate] = true
 	return candidate
+}
+
+// fleetFileNames gives each fleet a distinct file name, since distinct names can
+// sanitize alike ("Mac/Win" and "Macawin"). The lowest ID keeps the sanitized
+// name, so a newer fleet is the one numbered. No fleet can take Unassigned's
+// file or no-team.yml, which fleetctl gitops rejects.
+func fleetFileNames(teams []fleet.Team) map[uint]string {
+	order := make([]int, len(teams))
+	for i := range order {
+		order[i] = i
+	}
+	slices.SortFunc(order, func(a, b int) int { return cmp.Compare(teams[a].ID, teams[b].ID) })
+	taken := map[string]bool{unassignedFileName + ".yml": true, "no-team.yml": true}
+	names := make(map[uint]string, len(teams))
+	// Sanitized names go first, so a numbered name ("macawin-2") can't take the
+	// file of a fleet that sanitizes to it ("Macawin-2").
+	for _, i := range order {
+		if fileName := generateFilename(teams[i].Name) + ".yml"; !taken[fileName] {
+			taken[fileName] = true
+			names[teams[i].ID] = strings.TrimSuffix(fileName, ".yml")
+		}
+	}
+	for _, i := range order {
+		if _, ok := names[teams[i].ID]; !ok {
+			names[teams[i].ID] = strings.TrimSuffix(uniqueFilename(generateFilename(teams[i].Name)+".yml", taken), ".yml")
+		}
+	}
+	return names
 }
 
 func scriptExtensionForPlatform(platform string) string {
@@ -937,8 +1020,11 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	}
 	orgSettings[jsonFieldName(t, "YaraRules")] = yaraRules
 
-	// If --insecure is set, add real secrets.
-	if cmd.CLI.Bool("insecure") {
+	switch {
+	case cmd.exceptions.Secrets:
+		cmd.leftOut.Secrets = true
+	case cmd.CLI.Bool("insecure"):
+		// If --insecure is set, add real secrets.
 		enrollSecrets, err := cmd.Client.GetEnrollSecretSpec()
 		if err != nil {
 			return nil, err
@@ -948,7 +1034,7 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 			secrets[i] = map[string]string{"secret": spec.Secret}
 		}
 		orgSettings["secrets"] = secrets
-	} else {
+	default:
 		orgSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment("default.yml", "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: "default.yml",
@@ -1078,48 +1164,46 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		// Team integrations don't have secrets right now, so just return as-is.
 		return result, nil
 	}
-	// Obfuscate secrets if not in insecure mode.
-	if !cmd.CLI.Bool("insecure") {
-		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
-			for _, intg := range googleCalendar.([]interface{}) {
-				intgMap := intg.(map[string]any)
-				if _, ok := intgMap["api_key_json"]; ok {
-					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
-					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
-						Filename: "default.yml",
-						Key:      "integrations.google_calendar.api_key_json",
-					})
-				}
-			}
-		}
-		if jira, ok := result["jira"]; ok && jira != nil {
-			for _, intg := range jira.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
+	// GET /config always masks these, so even insecure mode only gets a placeholder.
+	if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
+		for _, intg := range googleCalendar.([]any) {
+			intgMap := intg.(map[string]any)
+			if _, ok := intgMap["api_key_json"]; ok {
+				intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.jira.api_token",
+					Key:      "integrations.google_calendar.api_key_json",
 				})
 			}
 		}
-		if zendesk, ok := result["zendesk"]; ok && zendesk != nil {
-			for _, intg := range zendesk.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
+	}
+	if jira, ok := result["jira"]; ok && jira != nil {
+		for _, intg := range jira.([]any) {
+			intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.jira.api_token",
+			})
+		}
+	}
+	if zendesk, ok := result["zendesk"]; ok && zendesk != nil {
+		for _, intg := range zendesk.([]any) {
+			intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
+			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+				Filename: "default.yml",
+				Key:      "integrations.zendesk.api_token",
+			})
+		}
+	}
+	if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
+		for _, intg := range googleWorkspace.([]any) {
+			intgMap := intg.(map[string]any)
+			if _, ok := intgMap["api_key_json"]; ok {
+				intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.zendesk.api_token",
+					Key:      "integrations.google_workspace.api_key_json",
 				})
-			}
-		}
-		if googleWorkspace, ok := result["google_workspace"]; ok && googleWorkspace != nil {
-			for _, intg := range googleWorkspace.([]any) {
-				intgMap := intg.(map[string]any)
-				if _, ok := intgMap["api_key_json"]; ok {
-					intgMap["api_key_json"] = cmd.AddComment(filePath, "TODO: Add your Google Workspace API key JSON here")
-					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
-						Filename: "default.yml",
-						Key:      "integrations.google_workspace.api_key_json",
-					})
-				}
 			}
 		}
 	}
@@ -1558,14 +1642,17 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 		return nil, err
 	}
 	teamSettings[jsonFieldName(t, "Integrations")] = integrations
-	// If --insecure is set, add real secrets.
-	if cmd.CLI.Bool("insecure") {
+	switch {
+	case cmd.exceptions.Secrets:
+		cmd.leftOut.Secrets = true
+	case cmd.CLI.Bool("insecure"):
+		// If --insecure is set, add real secrets.
 		secrets := make([]map[string]string, len(team.Secrets))
 		for i, spec := range team.Secrets {
 			secrets[i] = map[string]string{"secret": spec.Secret}
 		}
 		teamSettings["secrets"] = secrets
-	} else {
+	default:
 		teamSettings["secrets"] = []map[string]string{{"secret": cmd.AddComment(filePath, "TODO: Add your enroll secrets here")}}
 		cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 			Filename: filePath,
@@ -2068,13 +2155,14 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 			policySpec[jsonFieldName(t, "PatchWhenClosed")] = policy.PatchWhenClosed
 			policySpec[jsonFieldName(t, "NotifyBeforePatching")] = policy.NotifyBeforePatching
 			policySpec[jsonFieldName(t, "PatchDeadline")] = policy.PatchDeadline
+			policySpec[jsonFieldName(t, "ForcePatch")] = policy.ForcePatch
 		}
 		if policy.Type != "" {
 			policySpec["type"] = policy.Type
 		}
 
 		// Handle software automation.
-		if policy.InstallSoftware != nil {
+		if policy.InstallSoftware != nil && policy.Type != fleet.PolicyTypePatch {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
 				switch {
 				case software.MaintainedAppID != 0 && software.Slug != "":
@@ -2347,6 +2435,89 @@ func setSetupExperienceKeys(spec map[string]any, nativeSelected bool, crossTarge
 	spec["setup_experience_platform"] = strings.Join(platforms, ",")
 }
 
+func (cmd *GenerateGitopsCommand) exceptedNote(exception string) string {
+	changeManagementURL := strings.TrimRight(cmd.AppConfig.ServerSettings.ServerURL, "/") + "/settings/integrations/change-management"
+	return fmt.Sprintf("%q is excepted from GitOps management and was left out. To include it, disable the exception at %s and run this command again.", exception, changeManagementURL)
+}
+
+// leftOutException returns the exception that left key, or a key under it, out
+// of fileName, if any. Exceptions apply to every file, but each file holds only
+// some keys.
+func (cmd *GenerateGitopsCommand) leftOutException(fileName, key string) (string, bool) {
+	paths := map[string]string{"labels": "labels", "settings.secrets": "secrets", "software": "software"}
+	switch fileName {
+	case "default.yml":
+		paths = map[string]string{"labels": "labels", "org_settings.secrets": "secrets"}
+	case "fleets/" + unassignedFileName + ".yml":
+		paths = map[string]string{"software": "software"}
+	}
+	isLeftOut := map[string]bool{"labels": cmd.leftOut.Labels, "secrets": cmd.leftOut.Secrets, "software": cmd.leftOut.Software}
+	for path, exception := range paths {
+		if isLeftOut[exception] && (key == path || strings.HasPrefix(key, path+".") || strings.HasPrefix(path, key+".")) {
+			return exception, true
+		}
+	}
+	return "", false
+}
+
+// addToSoftwareList records how policies reference sw: by hash,
+// Fleet-maintained app, or App Store ID. It returns the comment that follows a
+// package's hash.
+func (cmd *GenerateGitopsCommand) addToSoftwareList(filePath string, sw fleet.SoftwareTitleListResult, slugResolver *fmaSlugResolver) (string, error) {
+	switch {
+	case len(sw.Packages) > 0:
+		pkgName := ""
+		if sw.Packages[0].Name != "" {
+			pkgName = fmt.Sprintf(" (%s)", sw.Packages[0].Name)
+		}
+		var comment string
+		if fleet.IsScriptPackage(strings.ToLower(filepath.Ext(sw.Packages[0].Name))) {
+			comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s", sw.Name, pkgName))
+		} else {
+			comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.Packages[0].Version))
+		}
+		if sw.HashSHA256 == nil {
+			return comment, nil
+		}
+		swEntry := Software{
+			Hash:    *sw.HashSHA256,
+			Comment: comment,
+		}
+		if sw.Packages[0].FleetMaintainedAppID != nil {
+			swEntry.MaintainedAppID = *sw.Packages[0].FleetMaintainedAppID
+			slug, err := slugResolver.resolve(*sw.Packages[0].FleetMaintainedAppID)
+			if err != nil {
+				return "", err
+			}
+			swEntry.Slug = slug
+		}
+		cmd.SoftwareList[sw.ID] = swEntry
+		return comment, nil
+	case len(sw.AppStoreApps) > 0:
+		cmd.SoftwareList[sw.ID] = Software{
+			AppStoreId: sw.AppStoreApps[0].AppStoreID,
+		}
+	}
+	return "", nil
+}
+
+// listSoftwareForPolicies fills cmd.SoftwareList without generating the
+// software key, for a fleet whose software is excepted from GitOps: its
+// policies still reference that software.
+func (cmd *GenerateGitopsCommand) listSoftwareForPolicies(filePath string, teamID uint) error {
+	software, err := cmd.Client.ListSoftwareTitles(fmt.Sprintf("available_for_install=1&fleet_id=%d&order_key=name", teamID))
+	if err != nil {
+		return err
+	}
+	slugResolver := &fmaSlugResolver{client: cmd.Client, teamID: teamID}
+	for _, sw := range software {
+		if _, err := cmd.addToSoftwareList(filePath, sw, slugResolver); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
 	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only
@@ -2447,18 +2618,12 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			fleet.IsScriptPackage(strings.ToLower(filepath.Ext(sw.Packages[0].Name)))
 
 		softwareSpec := make(map[string]interface{})
+		comment, err := cmd.addToSoftwareList(filePath, sw, slugResolver)
+		if err != nil {
+			return nil, err
+		}
 		switch {
 		case len(sw.Packages) > 0:
-			pkgName := ""
-			if sw.Packages[0].Name != "" {
-				pkgName = fmt.Sprintf(" (%s)", sw.Packages[0].Name)
-			}
-			var comment string
-			if isScriptPackage {
-				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s", sw.Name, pkgName))
-			} else {
-				comment = cmd.AddComment(filePath, fmt.Sprintf("%s%s version %s", sw.Name, pkgName, sw.Packages[0].Version))
-			}
 			if sw.HashSHA256 == nil {
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: filePath,
@@ -2467,26 +2632,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["hash_sha256"] = cmd.AddComment(filePath, "TODO: Add your hash_sha256 here")
 			} else {
 				softwareSpec["hash_sha256"] = *sw.HashSHA256 + " " + comment
-				swEntry := Software{
-					Hash:    *sw.HashSHA256,
-					Comment: comment,
-				}
-				if sw.Packages[0].FleetMaintainedAppID != nil {
-					swEntry.MaintainedAppID = *sw.Packages[0].FleetMaintainedAppID
-					slug, err := slugResolver.resolve(*sw.Packages[0].FleetMaintainedAppID)
-					if err != nil {
-						return nil, err
-					}
-					swEntry.Slug = slug
-				}
-
-				cmd.SoftwareList[sw.ID] = swEntry
 			}
 		case len(sw.AppStoreApps) > 0:
 			softwareSpec["app_store_id"] = sw.AppStoreApps[0].AppStoreID
-			cmd.SoftwareList[sw.ID] = Software{
-				AppStoreId: sw.AppStoreApps[0].AppStoreID,
-			}
 		default:
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error: software %s has no software package or app store app\n", sw.Name)
 			continue
