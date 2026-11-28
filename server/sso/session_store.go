@@ -68,6 +68,11 @@ type SSORequestData struct {
 	// the deviceinfo Fleet parsed and verified at initiation.
 	DeviceSerial string `json:"device_serial,omitempty"`
 	DeviceUDID   string `json:"device_udid,omitempty"`
+	// NativeCallback marks a Fleet Desktop flow whose IdP sign-in runs in the
+	// system browser on behalf of a native app. Its callback is found through
+	// RelayState instead of the handshake cookie, and answers with a one-time
+	// code instead of a session cookie.
+	NativeCallback bool `json:"native_callback,omitempty"`
 }
 
 // Session stores state for the lifetime of a single sign on session.
@@ -90,6 +95,8 @@ type Session struct {
 type SessionStore interface {
 	create(sessionID, requestID, originalURL, metadata string, lifetimeSecs uint, requestData SSORequestData) error
 	get(sessionID string) (*Session, error)
+	// Get loads a session without consuming it.
+	Get(sessionID string) (*Session, error)
 	expire(sessionID string) error
 	// Fullfill loads a session with the given session ID, deletes it and returns it.
 	Fullfill(sessionID string) (*Session, error)
@@ -155,6 +162,14 @@ func (s *store) get(sessionID string) (*Session, error) {
 		return nil, err
 	}
 	return &sess, nil
+}
+
+func (s *store) Get(sessionID string) (*Session, error) {
+	session, err := s.get(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("sso request invalid: %w", err)
+	}
+	return session, nil
 }
 
 func (s *store) expire(sessionID string) error {

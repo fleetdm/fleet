@@ -85,6 +85,13 @@ func CreateAuthorizationRequest(
 		return "", "", fmt.Errorf("caching SSO session while creating auth request: %w", err)
 	}
 
+	if requestData.NativeCallback {
+		relayState, err = fleet.NewSSONativeRelayState(sessionID)
+		if err != nil {
+			return "", "", ctxerr.Wrap(ctx, err, "building native relay state")
+		}
+	}
+
 	idpRedirectURL, err := samlAuthRequest.Redirect(string(relayState), samlProvider)
 	if err != nil {
 		return "", "", ctxerr.Wrap(ctx, err, "generating redirect")

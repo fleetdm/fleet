@@ -132,6 +132,8 @@ func (s *mockStore) get(sessionID string) (*Session, error) {
 	return s.session, nil
 }
 
+func (s *mockStore) Get(sessionID string) (*Session, error) { return s.get(sessionID) }
+
 func (s *mockStore) expire(sessionID string) error {
 	s.session = nil
 	return nil
@@ -166,22 +168,31 @@ func TestCreateAuthorizationRequestRelayState(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	relayStateFor := func(t *testing.T, relayState fleet.SSORelayState) string {
+	create := func(t *testing.T, relayState fleet.SSORelayState, requestData SSORequestData) (sessionID, gotRelayState string) {
 		t.Helper()
-		_, idpURL, err := CreateAuthorizationRequest(context.Background(),
+		sessionID, idpURL, err := CreateAuthorizationRequest(t.Context(),
 			samlProvider,
 			&mockStore{},
 			"/redir",
 			0,
 			relayState,
-			SSORequestData{},
+			requestData,
 		)
 		require.NoError(t, err)
 		parsed, err := url.Parse(idpURL)
 		require.NoError(t, err)
-		return parsed.Query().Get("RelayState")
+		return sessionID, parsed.Query().Get("RelayState")
 	}
 
-	require.Empty(t, relayStateFor(t, fleet.SSORelayStateNone))
-	require.Equal(t, fleet.SSOInitiatorFleetDesktop, relayStateFor(t, fleet.SSOInitiatorFleetDesktop))
+	_, relayState := create(t, fleet.SSORelayStateNone, SSORequestData{})
+	require.Empty(t, relayState)
+	_, relayState = create(t, fleet.SSOInitiatorFleetDesktop, SSORequestData{})
+	require.Equal(t, fleet.SSOInitiatorFleetDesktop, relayState)
+
+	// A native callback has no handshake cookie to find the session with, so
+	// RelayState has to lead back to it.
+	sessionID, relayState := create(t, fleet.SSOInitiatorFleetDesktop, SSORequestData{NativeCallback: true})
+	gotSessionID, ok := fleet.ParseSSONativeRelayState(relayState)
+	require.True(t, ok)
+	require.Equal(t, sessionID, gotSessionID)
 }

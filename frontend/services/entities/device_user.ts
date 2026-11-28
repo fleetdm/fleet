@@ -113,14 +113,34 @@ export default {
 
   /** Starts the Fleet Desktop SSO flow. Sets the SSO handshake cookie and
    * returns the IdP URL to navigate to; the session cookie is set server-side
-   * when the IdP calls back. */
+   * when the IdP calls back.
+   *
+   * With `nativeCallback`, the IdP URL is meant for a native app to open
+   * outside this page's browser: the callback then answers the app with a
+   * one-time code for `exchangeDeviceSSOCode` instead of setting the cookie. */
   initiateDeviceSSO: (
-    deviceAuthToken: string
+    deviceAuthToken: string,
+    nativeCallback = false
   ): Promise<IInitiateDeviceSSOResponse> => {
     const { DEVICE_USER_DETAILS } = endpoints;
     const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/sso`;
 
-    return sendRequest("POST", path);
+    return sendRequest(
+      "POST",
+      nativeCallback ? `${path}?native_callback=true` : path
+    );
+  },
+
+  /** Trades the one-time code from a native callback for the device SSO
+   * session cookie. */
+  exchangeDeviceSSOCode: (
+    deviceAuthToken: string,
+    code: string
+  ): Promise<void> => {
+    const { DEVICE_USER_DETAILS } = endpoints;
+    const path = `${DEVICE_USER_DETAILS}/${deviceAuthToken}/sso/exchange`;
+
+    return sendRequest("POST", path, { code });
   },
 
   getGoogleConditionalAccessStatus: (

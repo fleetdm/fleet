@@ -42,11 +42,12 @@ import {
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 
 import DeviceUserPage from "./DeviceUserPage";
-import { replaceLocation } from "./helpers";
+import { reloadPage, replaceLocation } from "./helpers";
 
 jest.mock("./helpers", () => ({
   ...jest.requireActual("./helpers"),
   replaceLocation: jest.fn(),
+  reloadPage: jest.fn(),
 }));
 
 jest.mock("components/ToastNotification", () => ({
@@ -1107,6 +1108,130 @@ describe("Device User Page - Fleet Desktop SSO", () => {
 
     await expectRedirectingToIdP();
     expect(initiateDeviceSSO).toHaveBeenCalledTimes(2);
+  });
+
+  describe("in the Fleet Desktop macOS app", () => {
+    const idpURL = "https://idp.example.com/sso?SAMLRequest=abc";
+    let postMessage: jest.Mock;
+    let exchangeDeviceSSOCode: jest.SpyInstance;
+
+    /** Answers `waitForWindow` at once and `signIn` with `signInResult`. */
+    const answerSignIn = (signInResult: () => Promise<unknown>) =>
+      postMessage.mockImplementation(({ action }: { action: string }) =>
+        action === "signIn" ? signInResult() : Promise.resolve({})
+      );
+
+    beforeEach(() => {
+      postMessage = jest.fn();
+      (window as { webkit?: unknown }).webkit = {
+        messageHandlers: { fleetDesktopSSO: { postMessage } },
+      };
+      mockServer.use(ssoRequiredDeviceHandler);
+      initiateDeviceSSO.mockResolvedValue({ url: idpURL });
+      exchangeDeviceSSOCode = jest
+        .spyOn(deviceUserAPI, "exchangeDeviceSSOCode")
+        .mockResolvedValue(undefined);
+      (reloadPage as jest.Mock).mockClear();
+    });
+
+    afterEach(() => {
+      delete (window as { webkit?: unknown }).webkit;
+    });
+
+    it("hands the IdP sign-in to the app and exchanges the code it returns", async () => {
+      answerSignIn(() => Promise.resolve({ code: "one-time-code" }));
+
+      renderPage();
+
+      await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1));
+      expect(initiateDeviceSSO).toHaveBeenCalledWith("testToken", true);
+      expect(postMessage).toHaveBeenCalledWith({
+        action: "signIn",
+        url: idpURL,
+      });
+      expect(exchangeDeviceSSOCode).toHaveBeenCalledWith(
+        "testToken",
+        "one-time-code"
+      );
+    });
+
+    it("renders a retryable error when the app reports a failed sign-in", async () => {
+      answerSignIn(() => Promise.resolve({ error: "session_expired" }));
+
+      renderPage();
+
+      await expectManualRetry();
+      expect(exchangeDeviceSSOCode).not.toHaveBeenCalled();
+      expect(reloadPage).not.toHaveBeenCalled();
+    });
+
+    it("renders a retryable error when the end user closes the sign-in window", async () => {
+      answerSignIn(() => Promise.reject(new Error("cancelled")));
+
+      const { user } = renderPage();
+
+      const retry = await screen.findByRole("button", {
+        name: "Sign in again",
+      });
+      expect(reloadPage).not.toHaveBeenCalled();
+
+      answerSignIn(() => Promise.resolve({ code: "one-time-code" }));
+      await user.click(retry);
+
+      await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1));
+    });
+
+    it("starts no sign-in until the app's window is open", async () => {
+      let openWindow: (value: unknown) => void = () => undefined;
+      postMessage.mockImplementation(({ action }: { action: string }) =>
+        action === "signIn"
+          ? Promise.resolve({ code: "one-time-code" })
+          : new Promise((resolve) => {
+              openWindow = resolve;
+            })
+      );
+
+      renderPage();
+
+      await waitFor(() =>
+        expect(postMessage).toHaveBeenCalledWith({ action: "waitForWindow" })
+      );
+      await expectRedirectingToIdP();
+      expect(initiateDeviceSSO).not.toHaveBeenCalled();
+      // The app can reload the page during the wait; the reloaded page must
+      // still get its automatic attempt.
+      expect(
+        window.sessionStorage.getItem("fleet-device-sso-attempt:testToken")
+      ).toBeNull();
+
+      openWindow({});
+
+      await waitFor(() => expect(reloadPage).toHaveBeenCalledTimes(1));
+      expect(initiateDeviceSSO).toHaveBeenCalledTimes(1);
+      // Coming back from the reload still signed out must not start over.
+      expect(
+        window.sessionStorage.getItem("fleet-device-sso-attempt:testToken")
+      ).not.toBeNull();
+    });
+
+    it("renders a retryable error when the app answers with something other than a code", async () => {
+      answerSignIn(() => Promise.resolve(undefined));
+
+      renderPage();
+
+      await expectManualRetry();
+      expect(exchangeDeviceSSOCode).not.toHaveBeenCalled();
+    });
+
+    it("renders a retryable error when the code is refused", async () => {
+      answerSignIn(() => Promise.resolve({ code: "one-time-code" }));
+      exchangeDeviceSSOCode.mockRejectedValue(new Error("400"));
+
+      renderPage();
+
+      await expectManualRetry();
+      expect(reloadPage).not.toHaveBeenCalled();
+    });
   });
 });
 

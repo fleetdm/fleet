@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -208,7 +209,9 @@ func TestInitiateDeviceSSO(t *testing.T) {
 				ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, UUID: "host-uuid-1"})
 			}
 
-			initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+devTok)
+			initiation, err := svc.InitiateDeviceSSO(ctx, "/device/"+devTok, false)
+			_, nativeErr := svc.InitiateDeviceSSO(ctx, "/device/"+devTok, true)
+			require.Equal(t, err == nil, nativeErr == nil, "the native callback flow must start under the same conditions")
 
 			if c.wantErr != "" {
 				require.Error(t, err)
@@ -233,8 +236,160 @@ func TestInitiateDeviceSSO(t *testing.T) {
 				string(fleet.SSORelayState(fleet.SSOInitiatorFleetDesktop)),
 				idpURL.Query().Get("RelayState"))
 			require.NotContains(t, idpURL.RawQuery, devTok)
+			require.NotEmpty(t, initiation.SessionID)
 		})
 	}
+}
+
+func TestInitiateDeviceSSONativeCallback(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		var ac fleet.AppConfig
+		ac.FleetDesktop.SSOEnabled = true
+		ac.ServerSettings.ServerURL = "https://fleet.example.com"
+		ac.MDM.EndUserAuthentication.SSOProviderSettings = fleet.SSOProviderSettings{
+			EntityID: "fleet",
+			IDPName:  "TestIDP",
+			Metadata: mdmSSOTestMetadata,
+		}
+		return &ac, nil
+	}
+	svc, _, _ := newDeviceSSOTestService(t, ds, time.Hour)
+	svc.ssoSessionStore = sso.NewSessionStore(redistest.NopRedis())
+
+	ctx := hostctx.NewContext(t.Context(), &fleet.Host{ID: 1, UUID: "host-uuid-1"})
+	initiation, err := svc.InitiateDeviceSSO(ctx, "/device/device-auth-token-abc123", true)
+	require.NoError(t, err)
+
+	// No handshake cookie: the callback runs in the system browser, which
+	// would never send it.
+	require.Empty(t, initiation.SessionID)
+
+	idpURL, err := url.Parse(initiation.IdPURL)
+	require.NoError(t, err)
+	sessionID, ok := fleet.ParseSSONativeRelayState(idpURL.Query().Get("RelayState"))
+	require.True(t, ok)
+	require.NotEmpty(t, sessionID)
+	require.NotContains(t, idpURL.RawQuery, "device-auth-token-abc123")
+}
+
+func TestDeviceSSONativeCallbackEarlyFailure(t *testing.T) {
+	testCases := []struct {
+		name         string
+		samlResponse []byte
+		wantRedirect string
+	}{
+		{name: "expired handshake", samlResponse: []byte("<x/>"), wantRedirect: "fleet://sso-callback?error=session_expired"},
+		{name: "response the endpoint could not decode", samlResponse: nil, wantRedirect: "fleet://sso-callback?error=error"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc, _ := newMDMSSOTestService(t,
+				mdmSSOTestAppConfig("https://fleet.example.com", true), config.TestConfig())
+			// Every outcome has to go back to the app, or its sign-in window
+			// is left open on a page the end user can't act on.
+			require.Equal(t, tc.wantRedirect,
+				svc.DeviceSSONativeCallback(t.Context(), "does-not-exist", tc.samlResponse))
+		})
+	}
+}
+
+// atomicClaimStore reports every claim as lost, as the Redis store does for
+// the slower of two concurrent exchanges.
+type atomicClaimStore struct {
+	fleet.KeyValueStore
+	claims []string
+}
+
+func (s *atomicClaimStore) SetIfNotExists(_ context.Context, key string, _ string, _ time.Duration) (bool, error) {
+	s.claims = append(s.claims, key)
+	return false, nil
+}
+
+func TestExchangeDeviceSSOCode(t *testing.T) {
+	host := &fleet.Host{ID: 42, UUID: "host-uuid-1"}
+
+	setup := func(t *testing.T) (svc *Service, mockClock *clock.MockClock, sessionID, code string) {
+		svc, _, mockClock = newDeviceSSOTestService(t, new(mock.Store), time.Hour)
+		sessionID, _, err := svc.createDeviceSSOSession(t.Context(), host, "idp-acct-uuid")
+		require.NoError(t, err)
+		code = "one-time-code"
+		require.NoError(t, svc.keyValueStore.Set(t.Context(), deviceSSOCodeKeyPrefix+code, sessionID, deviceSSOCodeTTL))
+		return svc, mockClock, sessionID, code
+	}
+
+	requireInvalid := func(t *testing.T, sessionID string, err error) {
+		t.Helper()
+		require.Empty(t, sessionID)
+		var badReq *fleet.BadRequestError
+		require.ErrorAs(t, err, &badReq)
+	}
+
+	t.Run("returns the session minted with the code", func(t *testing.T) {
+		svc, mockClock, wantSessionID, code := setup(t)
+		mockClock.AddTime(time.Minute)
+
+		ctx := hostctx.NewContext(t.Context(), host)
+		sessionID, duration, err := svc.ExchangeDeviceSSOCode(ctx, code)
+		require.NoError(t, err)
+		require.Equal(t, wantSessionID, sessionID)
+		// The cookie must not outlive the session it carries.
+		require.Equal(t, time.Hour-time.Minute, duration)
+
+		// The code works once.
+		sessionID, _, err = svc.ExchangeDeviceSSOCode(ctx, code)
+		requireInvalid(t, sessionID, err)
+	})
+
+	t.Run("another host cannot redeem or spend the code", func(t *testing.T) {
+		svc, _, wantSessionID, code := setup(t)
+		ctx := hostctx.NewContext(t.Context(), &fleet.Host{ID: 43, UUID: "host-uuid-2"})
+		sessionID, _, err := svc.ExchangeDeviceSSOCode(ctx, code)
+		requireInvalid(t, sessionID, err)
+
+		sessionID, _, err = svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), host), code)
+		require.NoError(t, err)
+		require.Equal(t, wantSessionID, sessionID)
+	})
+
+	t.Run("an exchange that loses the claim on the code is refused", func(t *testing.T) {
+		svc, _, _, code := setup(t)
+		store := &atomicClaimStore{KeyValueStore: svc.keyValueStore}
+		svc.keyValueStore = store
+
+		sessionID, _, err := svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), host), code)
+		requireInvalid(t, sessionID, err)
+		require.Equal(t, []string{deviceSSOCodeUsedKeyPrefix + code}, store.claims)
+
+		// A wrong host is turned away before it can claim the code.
+		store.claims = nil
+		_, _, err = svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), &fleet.Host{ID: 43}), code)
+		require.Error(t, err)
+		require.Empty(t, store.claims)
+	})
+
+	t.Run("unknown, empty, and oversized codes", func(t *testing.T) {
+		svc, _, _, _ := setup(t)
+		ctx := hostctx.NewContext(t.Context(), host)
+		for _, code := range []string{"", "does-not-exist", strings.Repeat("a", 1024)} {
+			sessionID, _, err := svc.ExchangeDeviceSSOCode(ctx, code)
+			requireInvalid(t, sessionID, err)
+		}
+	})
+
+	t.Run("code whose session has expired", func(t *testing.T) {
+		svc, mockClock, _, code := setup(t)
+		mockClock.AddTime(2 * time.Hour)
+		sessionID, _, err := svc.ExchangeDeviceSSOCode(hostctx.NewContext(t.Context(), host), code)
+		requireInvalid(t, sessionID, err)
+	})
+
+	t.Run("no host resolved from the device token", func(t *testing.T) {
+		svc, _, _, code := setup(t)
+		_, _, err := svc.ExchangeDeviceSSOCode(t.Context(), code)
+		var authRequired *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authRequired)
+	})
 }
 
 func TestRequireDeviceSSOSession(t *testing.T) {

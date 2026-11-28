@@ -192,7 +192,23 @@ type Service interface {
 	// InitiateDeviceSSO starts the SAML authentication flow for the Fleet
 	// Desktop "My device" page, bound to the host resolved from the
 	// initiating device token.
-	InitiateDeviceSSO(ctx context.Context, deviceURL string) (*DeviceSSOInitiation, error)
+	//
+	// nativeCallback is set when the IdP sign-in runs in the system browser on
+	// behalf of a native app, whose own web view is the one that needs the
+	// session: the flow then ends in DeviceSSONativeCallback and
+	// ExchangeDeviceSSOCode instead of a session cookie on the callback.
+	InitiateDeviceSSO(ctx context.Context, deviceURL string, nativeCallback bool) (*DeviceSSOInitiation, error)
+
+	// DeviceSSONativeCallback handles the IdP SAMLResponse of a Fleet Desktop
+	// flow started with nativeCallback, and returns the URL that hands the
+	// result back to the app: a one-time code on success, an error reason
+	// otherwise.
+	DeviceSSONativeCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string)
+
+	// ExchangeDeviceSSOCode trades the one-time code from
+	// DeviceSSONativeCallback for the device SSO session it stands for. The
+	// session must belong to the host that authenticated the request.
+	ExchangeDeviceSSOCode(ctx context.Context, code string) (sessionID string, sessionDuration time.Duration, err error)
 
 	// RequireDeviceSSOSession enforces the Fleet Desktop SSO gate for the given host.
 	// When fleet_desktop.sso_enabled is off it allows the request; when it is on,

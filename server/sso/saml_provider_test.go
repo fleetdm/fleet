@@ -29,6 +29,8 @@ func (f *fakeSessionStore) get(sessionID string) (*Session, error) {
 	return sess, nil
 }
 
+func (f *fakeSessionStore) Get(sessionID string) (*Session, error) { return f.get(sessionID) }
+
 func (f *fakeSessionStore) expire(sessionID string) error {
 	delete(f.sessions, sessionID)
 	return nil

@@ -5,8 +5,10 @@ import deviceUserAPI from "services/entities/device_user";
 import {
   canAutoInitiateDeviceSSO,
   clearDeviceSSOAttempt,
+  getFleetDesktopSSOBridge,
   isSSORequiredError,
   recordDeviceSSOAttempt,
+  reloadPage,
 } from "./helpers";
 
 interface IUseDeviceSSOOptions {
@@ -26,8 +28,9 @@ interface IUseDeviceSSOOptions {
 interface IUseDeviceSSOResult {
   isSSORequired: boolean;
   /** True from the moment an sso_required refusal arrives until the browser
-   * leaves for the IdP (or the initiate call fails), so the terminal error
-   * never flashes on the way there. */
+   * leaves for the IdP, or until the Fleet Desktop app's sign-in has finished
+   * and the page reloads. False again once either fails, so the terminal
+   * error never flashes on the way there. */
   isRedirecting: boolean;
   retry: () => void;
 }
@@ -49,8 +52,31 @@ const useDeviceSSO = ({
   const redirectToIdP = useCallback(async () => {
     setIsNavigating(true);
     try {
-      const { url } = await deviceUserAPI.initiateDeviceSSO(deviceAuthToken);
-      window.location.href = url;
+      const bridge = getFleetDesktopSSOBridge();
+      if (!bridge) {
+        const { url } = await deviceUserAPI.initiateDeviceSSO(deviceAuthToken);
+        window.location.href = url;
+        return;
+      }
+      // The app may reload this page while it waits for its window or for
+      // the sign-in, and the reloaded page has to be able to start over. The
+      // loop the attempt flag guards against can only begin at the reload
+      // below, so that is where the attempt is spent.
+      clearDeviceSSOAttempt(deviceAuthToken);
+      await bridge.postMessage({ action: "waitForWindow" });
+      const { url } = await deviceUserAPI.initiateDeviceSSO(
+        deviceAuthToken,
+        true
+      );
+      const result = await bridge.postMessage({ action: "signIn", url });
+      const code = result?.code;
+      if (typeof code !== "string" || !code) {
+        throw new Error("sign-in did not complete");
+      }
+      await deviceUserAPI.exchangeDeviceSSOCode(deviceAuthToken, code);
+      recordDeviceSSOAttempt(deviceAuthToken);
+      // The session cookie is set now; reload so every refused query reruns.
+      reloadPage();
     } catch {
       setIsNavigating(false);
     }

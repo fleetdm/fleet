@@ -1636,6 +1636,41 @@ func ParseSSORelayState(raw string) SSORelayState {
 	}
 }
 
+// ssoRelayStateNativePrefix marks the RelayState of a Fleet Desktop flow that
+// returns to a native app. The SSO session ID follows it.
+const ssoRelayStateNativePrefix = SSOInitiatorFleetDesktop + "_native:"
+
+// NewSSONativeRelayState builds the RelayState for a Fleet Desktop flow that
+// returns to a native app. The callback runs in the system browser, which
+// never saw the handshake cookie, so RelayState carries the session ID. The
+// ID is re-encoded as URL-safe base64 because IdPs don't all echo "+" and "/"
+// back intact.
+func NewSSONativeRelayState(sessionID string) (SSORelayState, error) {
+	raw, err := base64.StdEncoding.Strict().DecodeString(sessionID)
+	if err != nil {
+		return SSORelayStateNone, fmt.Errorf("decode sso session id: %w", err)
+	}
+	return SSORelayState(ssoRelayStateNativePrefix + base64.RawURLEncoding.EncodeToString(raw)), nil
+}
+
+// ParseSSONativeRelayState returns the SSO session ID carried by a native
+// Fleet Desktop RelayState. ok reports whether raw is one at all, even when
+// the session ID in it is malformed, so the callback can still answer the app.
+func ParseSSONativeRelayState(raw string) (sessionID string, ok bool) {
+	if len(raw) > maxSSORelayStateLen {
+		return "", false
+	}
+	encoded, ok := strings.CutPrefix(raw, ssoRelayStateNativePrefix)
+	if !ok {
+		return "", false
+	}
+	decoded, err := base64.RawURLEncoding.Strict().DecodeString(encoded)
+	if err != nil {
+		return "", true
+	}
+	return base64.StdEncoding.EncodeToString(decoded), true
+}
+
 // DeviceSSOInitiation is what a device needs to start the Fleet Desktop SSO
 // flow: the IdP URL to navigate to, plus the handshake session that ties the
 // eventual SAML callback back to this request.
@@ -1643,7 +1678,8 @@ type DeviceSSOInitiation struct {
 	// IdPURL is the URL the browser must navigate to in order to authenticate.
 	IdPURL string
 	// SessionID identifies the SSO handshake session, carried to the SAML
-	// callback by the __Host-FLEETSSOSESSIONID cookie.
+	// callback by the __Host-FLEETSSOSESSIONID cookie. Empty for a native
+	// callback flow, which carries it in RelayState instead.
 	SessionID string
 	// SessionDuration is how long the handshake session and its cookie stay
 	// valid; both must use it so neither outlives the other.

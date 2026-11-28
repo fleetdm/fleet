@@ -76,6 +76,11 @@ const (
 	// of FleetUISSOCallbackError.
 	FleetUIDeviceSSOError = "/device/sso-error?reason=error"
 
+	// FleetDesktopSSOCallbackURL is where a Fleet Desktop SSO flow with a native
+	// callback ends. The Fleet Desktop app runs the IdP sign-in in a system
+	// authentication session that completes on this URL's scheme.
+	FleetDesktopSSOCallbackURL = "fleet://sso-callback"
+
 	// FleetUIDeviceSSOErrorSessionExpired is the device-page counterpart of
 	// FleetUISSOCallbackSessionExpired.
 	FleetUIDeviceSSOErrorSessionExpired = "/device/sso-error?reason=session_expired"

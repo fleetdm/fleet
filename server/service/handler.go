@@ -820,6 +820,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	// auth.sso_rate_limit_per_minute tunes both.
 	deviceSsoLimiter := limiter.Limit("device_sso", throttled.RateQuota{MaxRate: ssoRateLimit, MaxBurst: 9})
 	deNoSSO.WithCustomMiddleware(errorLimiter, deviceSsoLimiter).POST("/api/_version_/fleet/device/{token}/sso", initiateDeviceSSOEndpoint, initiateDeviceSSORequest{})
+	deNoSSO.WithCustomMiddleware(errorLimiter).POST("/api/_version_/fleet/device/{token}/sso/exchange", exchangeDeviceSSOCodeEndpoint, exchangeDeviceSSOCodeRequest{})
 	// migrate_mdm is posted by the tray app's "Migrate to Fleet" dialog with the
 	// device token alone (orbit/pkg/useraction -> DeviceClient.MigrateMDM), and it
 	// has no browser to complete an IdP round-trip in.

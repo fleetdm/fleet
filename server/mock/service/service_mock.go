@@ -71,7 +71,11 @@ type SetOrUpdateDeviceAuthTokenFunc func(ctx context.Context, authToken string) 
 
 type GetFleetDesktopSummaryFunc func(ctx context.Context) (fleet.DesktopSummary, error)
 
-type InitiateDeviceSSOFunc func(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error)
+type InitiateDeviceSSOFunc func(ctx context.Context, deviceURL string, nativeCallback bool) (*fleet.DeviceSSOInitiation, error)
+
+type DeviceSSONativeCallbackFunc func(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string)
+
+type ExchangeDeviceSSOCodeFunc func(ctx context.Context, code string) (sessionID string, sessionDuration time.Duration, err error)
 
 type RequireDeviceSSOSessionFunc func(ctx context.Context, host *fleet.Host, sessionID string) error
 
@@ -1079,6 +1083,12 @@ type Service struct {
 
 	InitiateDeviceSSOFunc        InitiateDeviceSSOFunc
 	InitiateDeviceSSOFuncInvoked bool
+
+	DeviceSSONativeCallbackFunc        DeviceSSONativeCallbackFunc
+	DeviceSSONativeCallbackFuncInvoked bool
+
+	ExchangeDeviceSSOCodeFunc        ExchangeDeviceSSOCodeFunc
+	ExchangeDeviceSSOCodeFuncInvoked bool
 
 	RequireDeviceSSOSessionFunc        RequireDeviceSSOSessionFunc
 	RequireDeviceSSOSessionFuncInvoked bool
@@ -2650,11 +2660,25 @@ func (s *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSumm
 	return s.GetFleetDesktopSummaryFunc(ctx)
 }
 
-func (s *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string) (*fleet.DeviceSSOInitiation, error) {
+func (s *Service) InitiateDeviceSSO(ctx context.Context, deviceURL string, nativeCallback bool) (*fleet.DeviceSSOInitiation, error) {
 	s.mu.Lock()
 	s.InitiateDeviceSSOFuncInvoked = true
 	s.mu.Unlock()
-	return s.InitiateDeviceSSOFunc(ctx, deviceURL)
+	return s.InitiateDeviceSSOFunc(ctx, deviceURL, nativeCallback)
+}
+
+func (s *Service) DeviceSSONativeCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL string) {
+	s.mu.Lock()
+	s.DeviceSSONativeCallbackFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeviceSSONativeCallbackFunc(ctx, sessionID, samlResponse)
+}
+
+func (s *Service) ExchangeDeviceSSOCode(ctx context.Context, code string) (sessionID string, sessionDuration time.Duration, err error) {
+	s.mu.Lock()
+	s.ExchangeDeviceSSOCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ExchangeDeviceSSOCodeFunc(ctx, code)
 }
 
 func (s *Service) RequireDeviceSSOSession(ctx context.Context, host *fleet.Host, sessionID string) error {
