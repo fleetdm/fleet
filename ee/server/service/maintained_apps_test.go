@@ -422,7 +422,7 @@ func TestAddFleetMaintainedAppChecksumMismatch(t *testing.T) {
 	}
 	svc := newTestService(t, ds)
 	ctx := authz_ctx.NewContext(t.Context(), &authz_ctx.AuthorizationContext{})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
 
 	id, err := svc.AddFleetMaintainedApp(ctx, nil, testFMAAppID, "", "", "", "", false, false, nil, nil, nil)
 	require.Error(t, err)
