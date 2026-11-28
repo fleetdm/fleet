@@ -2132,6 +2132,22 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:    "@anthropic-ai/claude-code",
+				Source:  "npm_packages",
+				Version: "1.0.61",
+			},
+			cpe: "cpe:2.3:a:anthropic:claude_code:1.0.61:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "cline",
+				Source:  "npm_packages",
+				Version: "3.0.29",
+			},
+			cpe: "cpe:2.3:a:cline:cline:3.0.29:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
 				Name:             "iTerm2",
 				Source:           "apps",
 				Version:          "3.5.14",
