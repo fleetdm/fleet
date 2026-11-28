@@ -1,0 +1,22 @@
+# Logins by the driver's own password users. Most sessions are left to expire, as people do.
+kind: action
+id: W-USER-01
+feature: users
+title: Log in, load the current user, sometimes log out
+verb: users.login
+with: {logout: 0.3}
+rate: {start: 100/day, profile: activity.user_logged_in}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 2s"}
+---
+kind: action
+id: W-USER-02
+feature: users
+title: Failed login (wrong password)
+verb: users.login
+with: {fail: true}
+rate: {start: 5/day, profile: activity.user_failed_login}
+curve: business_hours
+check:
+  request: {status: "401", took: "<= 2s"}

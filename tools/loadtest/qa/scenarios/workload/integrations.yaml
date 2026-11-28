@@ -1,0 +1,33 @@
+# What identity-provider and inventory integrations do through the API all day.
+kind: action
+id: W-IDP-01
+feature: hosts
+title: An IdP integration sets a host's user
+verb: hosts.idp
+with: {users: 5000}
+rate: {start: 100/day, profile: activity.edited_host_idp_data}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 2s"}
+---
+kind: action
+id: W-LABEL-01
+feature: labels
+title: An integration adds a host to a manual label or removes one (host labels API)
+verb: labels.membership
+with: {route: api, labels: 10, hosts: 200, band: 50}
+rate: {start: 100/day, profile: activity.edited_label}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 2s"}
+---
+kind: action
+id: W-AO-01
+feature: fleets
+title: An admin changes a fleet's agent options (fleet agent options API)
+verb: fleets.agent_options
+with: {option: distributed_tls_max_attempts, values: "3,4"}
+rate: {start: 10/day, profile: activity.edited_agent_options}
+curve: business_hours
+check:
+  request: {status: ok, took: "<= 2s"}

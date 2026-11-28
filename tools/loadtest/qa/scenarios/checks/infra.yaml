@@ -1,0 +1,20 @@
+# Fleet's own health. The metrics with trip: true pause the workload (and run -on_trip) when their breach holds;
+# the others are findings to look at. Database load is watched in db.yaml and never trips.
+kind: check
+id: C-INFRA-01
+title: Fleet tasks stay up and within memory, healthz stays fast
+covers: [55071, 54601, 54969]
+metrics:
+  - {metric: fleet.memory.max, window: 5m, budget: "< 60%", breach: 1, trip: true}
+  - {metric: fleet.tasks_missing, window: 5m, budget: "== 0", breach: 2, trip: true}
+  - {metric: fleet.task_stops, window: 5m, budget: "== 0", breach: 1}   # reasons are in the event; ECS keeps them ~1 h
+  - {metric: healthz.p99, window: 15m, every: 5m, budget: "< 1s", breach: 3}
+  - {metric: fleet.cpu.max, window: 5m}
+---
+kind: check
+id: C-HOST-04
+title: The device load balancer answers hosts
+covers: [51023]
+metrics:
+  - {metric: alb.5xx_pct, window: 5m, budget: "< 1%", breach: 2, trip: true}
+  - {metric: hosts.online_drop, window: 1h, every: 5m, budget: "< 5%", breach: 2, trip: true}

@@ -1,0 +1,8 @@
+# Database load: warnings only. At a large population the reader runs >= 80% through most vulnerabilities runs
+# while Fleet stays healthy, so these never trip; Fleet's own symptoms (infra.yaml) do.
+kind: check
+id: C-DB-01
+title: Database CPU (warn only)
+metrics:
+  - {metric: writer.cpu, window: 5m, budget: "< 80%", breach: 3}
+  - {metric: reader.cpu, window: 5m, budget: "< 80%", breach: 12}

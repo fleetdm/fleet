@@ -27,6 +27,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign v1.8.3
 	github.com/aws/aws-sdk-go-v2/feature/rds/auth v1.6.16
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.17.81
+	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.56.1
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.69.0
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.78.0
 	github.com/aws/aws-sdk-go-v2/service/firehose v1.37.7
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.43.5
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.88.5

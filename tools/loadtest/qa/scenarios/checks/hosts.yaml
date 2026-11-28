@@ -1,0 +1,11 @@
+# Host check-ins, server side, from Fleet's request log. A breach here is a finding, not a reason to stop: one bad
+# window during a storm is the storm's finding.
+kind: check
+id: C-HOST-01
+title: Host check-ins stay fast
+covers: [55747, 54925]
+metrics:
+  - {metric: host.distributed_write.p99, window: 5m, budget: "<= 2s", breach: 3}
+  - {metric: osquery.config.p99, window: 5m, budget: "<= 2s", breach: 3}
+  - {metric: orbit.config.p99, window: 5m, budget: "<= 2s", breach: 3}
+  - {metric: checkin.errors, window: 5m}      # busiest minute's "context canceled" count; judged against a baseline later
