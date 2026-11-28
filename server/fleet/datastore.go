@@ -1730,6 +1730,11 @@ type Datastore interface {
 	// enqueues across rapid disable/enable toggles.
 	HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)
 
+	// ExpediteQueuedJobs moves the queued jobs with the given name whose args
+	// contain argsSubset (as MySQL's JSON_CONTAINS) so that they run no later
+	// than notBefore. Jobs already due by then are left unchanged.
+	ExpediteQueuedJobs(ctx context.Context, name string, argsSubset json.RawMessage, notBefore time.Time) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 

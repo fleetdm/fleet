@@ -56,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
+	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"github.com/micromdm/plist"
 	"github.com/smallstep/pkcs7"
@@ -5267,6 +5268,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 					return nil, ctxerr.Wrap(r.Context, err, "update install record")
 				}
 
+			} else if err := worker.ExpediteVPPInstallVerificationJob(r.Context, svc.ds, cmdResult.Identifier()); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "expedite install verification job")
 			}
 		}
 	case "DeviceConfigured":

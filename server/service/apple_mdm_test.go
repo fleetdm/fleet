@@ -4812,6 +4812,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 			require.Equal(t, hostUUID, uuid)
 			return true, nil
 		}
+		ds.ExpediteQueuedJobsFunc = func(_ context.Context, _ string, _ json.RawMessage, _ time.Time) error {
+			return nil
+		}
 
 		_, err := svc.CommandAndReportResults(
 			enrollReq(false),
@@ -4846,6 +4849,9 @@ func TestMDMCommandAndReportResultsInstallApplicationAlreadyInstalled(t *testing
 		}
 		ds.IsHostPendingMDMInstallVerificationFunc = func(_ context.Context, _ string) (bool, error) {
 			return true, nil
+		}
+		ds.ExpediteQueuedJobsFunc = func(_ context.Context, _ string, _ json.RawMessage, _ time.Time) error {
+			return nil
 		}
 
 		_, err := svc.CommandAndReportResults(
