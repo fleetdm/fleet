@@ -15,7 +15,12 @@ Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads i
 3. Click the **Actions** dropdown, then click  **Lock**.
 4. A confirmation dialog will appear. Confirm that you want to lock the device. The host will now be marked with a "Lock pending" badge. Once the lock command is acknowledged by the host, the badge will update to "Locked".*
 
-Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
+> **Windows hosts**: Fleet currently locks a Windows host by signing out all users, turning off cached logins, and shutting down the host. Because of this, the lock has two limits:
+>
+> - It only keeps an end user out if their account is also disabled. For hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined. For hosts that use Active Directory, disable the account there.
+> - If you unlock a host that is off your network and uses an on-premises Active Directory account, the end user might not be able to sign in. Fleet turns cached logins back on, but the end user's credentials are no longer cached, and the host can't reach your domain controller to cache them again. To recover the host, sign in with a local account, connect to your VPN, and have the end user sign in so their credentials are cached again.
+>
+> An updated version of lock and unlock for Windows is [coming in Fleet 5.2.0](https://github.com/fleetdm/fleet/issues/52076).
 
 > **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
 As part of locking an iOS or iPadOS host, Fleet collects the device's location data. Fleet will not consider the device fully locked until the location data is collected.
