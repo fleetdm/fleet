@@ -1,0 +1,1 @@
+- Fleet now rejects a managed app configuration for iOS and iPadOS apps that isn't a valid XML plist, instead of accepting it and sending devices an install command they can't parse.
