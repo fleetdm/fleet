@@ -594,7 +594,9 @@ func (svc *Service) AuthenticatedUser(ctx context.Context) (*fleet.User, error) 
 		return nil, err
 	}
 
-	if !vc.IsLoggedIn() {
+	// Gate on the authenticated user rather than the session: a viewer authenticated
+	// by an external identity has no Fleet session.
+	if vc.User == nil {
 		return nil, fleet.NewPermissionError("not logged in")
 	}
 	return vc.User, nil

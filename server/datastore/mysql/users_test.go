@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,6 +36,9 @@ func TestUsers(t *testing.T) {
 		{"Teams", testUsersTeams},
 		{"CreateWithTeams", testUsersCreateWithTeams},
 		{"SaveMany", testUsersSaveMany},
+		{"ExternalIdentities", testUsersExternalIdentities},
+		{"ExternalIdentitiesExactMatch", testUsersExternalIdentitiesExactMatch},
+		{"ExternalIdentitiesConcurrent", testUsersExternalIdentitiesConcurrent},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -493,4 +497,133 @@ func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	gotU3, err := ds.UserByID(context.Background(), u3.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
+}
+
+func testUsersExternalIdentities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u1 := test.NewUser(t, ds, "u1", "u1@example.com", false)
+	u2 := test.NewUser(t, ds, "u2", "u2@example.com", false)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "t1"})
+	require.NoError(t, err)
+	u1.GlobalRole = nil
+	u1.Teams = []fleet.UserTeam{{Team: *team, Role: fleet.RoleObserver}}
+	require.NoError(t, ds.SaveUser(ctx, u1))
+
+	a, b, c := fleet.ExternalIdentity{Issuer: "gh", Subject: "a"},
+		fleet.ExternalIdentity{Issuer: "gh", Subject: "b"},
+		fleet.ExternalIdentity{Issuer: "okta", Subject: "c"}
+
+	added, removed, err := ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{a, b})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []fleet.ExternalIdentity{a, b}, added)
+	assert.Empty(t, removed)
+
+	added, removed, err = ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{b, c})
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.ExternalIdentity{c}, added)
+	assert.Equal(t, []fleet.ExternalIdentity{a}, removed)
+
+	added, removed, err = ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{c, b})
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.Empty(t, removed)
+
+	got, err := ds.ListUserExternalIdentities(ctx, u1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.ExternalIdentity{b, c}, got)
+
+	// An identity bound to u1 cannot be bound to u2, and u1 keeps it.
+	_, _, err = ds.SetUserExternalIdentities(ctx, u2.ID, []fleet.ExternalIdentity{b})
+	var conflict *fleet.ConflictError
+	require.ErrorAs(t, err, &conflict)
+	got, err = ds.ListUserExternalIdentities(ctx, u2.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	got, err = ds.ListUserExternalIdentities(ctx, u1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []fleet.ExternalIdentity{b, c}, got)
+
+	user, err := ds.UserByExternalIdentity(ctx, "gh", "b")
+	require.NoError(t, err)
+	assert.Equal(t, u1.ID, user.ID)
+	require.Len(t, user.Teams, 1)
+	assert.Equal(t, team.ID, user.Teams[0].ID)
+
+	_, err = ds.UserByExternalIdentity(ctx, "gh", "a")
+	require.True(t, fleet.IsNotFound(err), err)
+	// The issuer is part of the key: the same subject under another issuer is a different identity.
+	_, err = ds.UserByExternalIdentity(ctx, "okta", "b")
+	require.True(t, fleet.IsNotFound(err), err)
+
+	added, removed, err = ds.SetUserExternalIdentities(ctx, u1.ID, nil)
+	require.NoError(t, err)
+	assert.Empty(t, added)
+	assert.ElementsMatch(t, []fleet.ExternalIdentity{b, c}, removed)
+
+	_, _, err = ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{a})
+	require.NoError(t, err)
+	require.NoError(t, ds.DeleteUser(ctx, u1.ID))
+	_, err = ds.UserByExternalIdentity(ctx, "gh", "a")
+	require.True(t, fleet.IsNotFound(err), err)
+}
+
+// Concurrent replaces for one user are serialized: none reports a conflict with
+// itself, and exactly one reports each identity as added.
+func testUsersExternalIdentitiesConcurrent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "u1", "u1@example.com", false)
+	ids := []fleet.ExternalIdentity{{Issuer: "gh", Subject: "a"}, {Issuer: "gh", Subject: "b"}}
+
+	const n = 8
+	var wg sync.WaitGroup
+	addedCounts := make([]int, n)
+	errs := make([]error, n)
+	for i := range n {
+		wg.Go(func() {
+			added, _, err := ds.SetUserExternalIdentities(ctx, u.ID, ids)
+			addedCounts[i], errs[i] = len(added), err
+		})
+	}
+	wg.Wait()
+
+	total := 0
+	for i := range n {
+		require.NoError(t, errs[i])
+		total += addedCounts[i]
+	}
+	assert.Equal(t, len(ids), total)
+	got, err := ds.ListUserExternalIdentities(ctx, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, ids, got)
+}
+
+// OIDC subjects are case-sensitive opaque strings: a lookalike must never match a binding.
+func testUsersExternalIdentitiesExactMatch(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u1 := test.NewUser(t, ds, "u1", "u1@example.com", false)
+	u2 := test.NewUser(t, ds, "u2", "u2@example.com", false)
+	sub := "repo:acme/infra:ref:refs/heads/main"
+	_, _, err := ds.SetUserExternalIdentities(ctx, u1.ID, []fleet.ExternalIdentity{{Issuer: "github", Subject: sub}})
+	require.NoError(t, err)
+
+	for _, lookalike := range []string{
+		"repo:acme/infra:ref:refs/heads/MAIN",
+		"repo:acme/infra:ref:refs/heads/maín",
+		"repo:acme/infra:ref:refs/heads/main ",
+		"REPO:ACME/INFRA:REF:REFS/HEADS/MAIN",
+	} {
+		_, err := ds.UserByExternalIdentity(ctx, "github", lookalike)
+		require.True(t, fleet.IsNotFound(err), "lookalike %q must not resolve: %v", lookalike, err)
+	}
+	_, err = ds.UserByExternalIdentity(ctx, "GITHUB", sub)
+	require.True(t, fleet.IsNotFound(err), "issuer name must match exactly")
+
+	// Case variants are distinct identities and can be bound to different users.
+	_, _, err = ds.SetUserExternalIdentities(ctx, u2.ID, []fleet.ExternalIdentity{
+		{Issuer: "github", Subject: "repo:acme/infra:ref:refs/heads/MAIN"},
+	})
+	require.NoError(t, err)
+	got, err := ds.UserByExternalIdentity(ctx, "github", sub)
+	require.NoError(t, err)
+	require.Equal(t, u1.ID, got.ID)
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth/externalauth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 )
@@ -54,6 +55,13 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 			if v.User.IsAdminForcedPasswordReset() {
 				return nil, fleet.ErrPasswordResetRequired
 			}
+			// The authorization context does not exist yet when SetRequestsContexts
+			// authenticates the request, so the method is recorded here.
+			if externalauth.FromContext(ctx) {
+				if ac, ok := authz.FromContext(ctx); ok {
+					ac.SetAuthnMethod(authz.AuthnExternalJWT)
+				}
+			}
 
 			return next(ctx, request)
 		}
@@ -78,6 +86,18 @@ func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpo
 		sessionKey, ok := token.FromContext(ctx)
 		if !ok {
 			return nil, fleet.NewAuthHeaderRequiredError("no auth token")
+		}
+		if externalauth.IsJWTShaped(string(sessionKey)) {
+			// Already rejected by SetRequestsContexts; it cannot be a session key.
+			err := externalAuthRejection(ctx)
+			var rl *externalauth.RateLimitedError
+			if errors.As(err, &rl) {
+				// skipauth: nothing was accessed. Without this, authzcheck turns the 429 into a 403.
+				if ac, ok := authz.FromContext(ctx); ok {
+					ac.SetChecked()
+				}
+			}
+			return nil, err
 		}
 
 		v, err := AuthViewer(ctx, string(sessionKey), svc)

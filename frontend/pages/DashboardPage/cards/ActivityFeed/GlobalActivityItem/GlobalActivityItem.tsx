@@ -325,6 +325,24 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  userExternalIdentityAdded: (activity: IActivity) => {
+    return (
+      <>
+        added external identity <b>{activity.details?.subject}</b> from issuer{" "}
+        <b>{activity.details?.issuer}</b> to API-only user{" "}
+        <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
+  userExternalIdentityDeleted: (activity: IActivity) => {
+    return (
+      <>
+        removed external identity <b>{activity.details?.subject}</b> from issuer{" "}
+        <b>{activity.details?.issuer}</b> from API-only user{" "}
+        <b>{activity.details?.user_email}</b>.
+      </>
+    );
+  },
   deletedHost: (activity: IActivity) => {
     const { host_display_name, triggered_by, host_expiry_window } =
       activity.details || {};
@@ -2781,6 +2799,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.UserDeleted: {
       return TAGGED_TEMPLATES.userDeleted(activity);
+    }
+    case ActivityType.UserExternalIdentityAdded: {
+      return TAGGED_TEMPLATES.userExternalIdentityAdded(activity);
+    }
+    case ActivityType.UserExternalIdentityDeleted: {
+      return TAGGED_TEMPLATES.userExternalIdentityDeleted(activity);
     }
     case ActivityType.HostDeleted: {
       return TAGGED_TEMPLATES.deletedHost(activity);

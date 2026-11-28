@@ -1,3 +1,4 @@
+import { isEqual } from "lodash";
 import React, { useContext, useState } from "react";
 import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -10,6 +11,7 @@ import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { IFormErrors } from "hooks/useFormValidation";
 import { IApiError } from "interfaces/errors";
+import { IExternalIdentitiesResponse } from "interfaces/external_identity";
 import { IInvite, IEditInviteFormData } from "interfaces/invite";
 import { ITeam } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -74,9 +76,21 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
     select: (data: ILoadTeamsResponse) => data.fleets,
   });
 
+  const isApiOnlyUser = !isInvite && !!user?.api_only;
+  // On error (e.g. the server predates external identities) the section stays hidden.
+  const {
+    data: externalIdentities,
+    isLoading: isLoadingExternalIdentities,
+  } = useQuery<IExternalIdentitiesResponse, Error>(
+    ["apiOnlyUserExternalIdentities", entityId],
+    () => usersAPI.getApiOnlyUserExternalIdentities(entityId),
+    { enabled: isApiOnlyUser, retry: false }
+  );
+
   const isLoading =
     (isInvite ? isLoadingInvite : isLoadingUser) ||
-    (isPremiumTier && isLoadingTeams);
+    (isPremiumTier && isLoadingTeams) ||
+    (isApiOnlyUser && isLoadingExternalIdentities);
   const hasError = isInvite ? !!inviteError : !!userError;
   const entityData = isInvite ? invite : user;
 
@@ -173,13 +187,44 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
         })),
         api_endpoints: formData.api_endpoints,
       })
-      .then(() => {
-        queryClient.invalidateQueries(["user", entityId]);
-        notify.success(`Successfully edited ${formData.name}.`);
-        router.push(PATHS.ADMIN_USERS);
-      })
-      .catch(() => {
-        notify.error(`Could not edit ${entityData.name}. Please try again.`);
+      .then(
+        () => {
+          queryClient.invalidateQueries(["user", entityId]);
+          const newIdentities = formData.external_identities;
+          if (
+            !newIdentities ||
+            isEqual(newIdentities, externalIdentities?.external_identities)
+          ) {
+            return true;
+          }
+          return usersAPI
+            .updateApiOnlyUserExternalIdentities(entityId, newIdentities)
+            .then(() => {
+              queryClient.invalidateQueries([
+                "apiOnlyUserExternalIdentities",
+                entityId,
+              ]);
+              return true;
+            })
+            .catch((response: unknown) => {
+              // The user's other changes are saved; stay so the bindings can be fixed.
+              notify.error(
+                `Saved ${formData.name}, but could not update its external identities.`,
+                { response }
+              );
+              return false;
+            });
+        },
+        () => {
+          notify.error(`Could not edit ${entityData.name}. Please try again.`);
+          return false;
+        }
+      )
+      .then((saved) => {
+        if (saved) {
+          notify.success(`Successfully edited ${formData.name}.`);
+          router.push(PATHS.ADMIN_USERS);
+        }
       })
       .finally(() => {
         setIsSubmitting(false);
@@ -220,9 +265,11 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
               global_role: entityData.global_role,
               fleets: entityData.fleets,
               api_endpoints: (entityData as IUser).api_endpoints,
+              external_identities: externalIdentities?.external_identities,
             }}
             isSubmitting={isSubmitting}
             isPremiumTier={isPremiumTier}
+            externalIdentityIssuers={externalIdentities?.issuers}
           />
         </>
       ) : (

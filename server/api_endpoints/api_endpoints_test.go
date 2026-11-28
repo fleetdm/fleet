@@ -87,6 +87,8 @@ type catalogBlocklistRule struct {
 //     code change that loosens that check would expose this).
 //   - Invite creation/modification — same as user creation, mints a new
 //     account with a chosen role.
+//   - External identity bindings — binding an identity the holder controls
+//     to an unrestricted api_only user grants that user's access.
 //
 // If you are intentionally exposing a new endpoint that matches one of these
 // patterns, justify the change in a security review and update the rules.
@@ -95,6 +97,7 @@ var catalogBlocklistRules = []catalogBlocklistRule{
 	{"PATCH", regexp.MustCompile(`^/api/v1/fleet/users(?:/.*)?$`), "user modification can change the api_endpoints allowlist"},
 	{"POST", regexp.MustCompile(`^/api/v1/fleet/invites(?:/.*)?$`), "invite creation = mint user with chosen role"},
 	{"PATCH", regexp.MustCompile(`^/api/v1/fleet/invites(?:/.*)?$`), "invite modification = change role on a pending user"},
+	{"PUT", regexp.MustCompile(`^/api/v1/fleet/users/api_only/[^/]+/external_identities$`), "binding an external identity = sign in as another api_only user"},
 }
 
 func findBlocklistViolations(endpoints []fleet.APIEndpoint) []string {
@@ -134,6 +137,7 @@ func TestCatalogBlocklist(t *testing.T) {
 			{Method: "PATCH", Path: "/api/v1/fleet/users/api_only/:id"},
 			{Method: "POST", Path: "/api/v1/fleet/invites"},
 			{Method: "PATCH", Path: "/api/v1/fleet/invites/:id"},
+			{Method: "PUT", Path: "/api/v1/fleet/users/api_only/:id/external_identities"},
 		}
 		for _, ex := range examples {
 			t.Run(ex.Method+" "+ex.Path, func(t *testing.T) {
@@ -148,6 +152,7 @@ func TestCatalogBlocklist(t *testing.T) {
 		ok := []fleet.APIEndpoint{
 			{Method: "GET", Path: "/api/v1/fleet/users"},
 			{Method: "GET", Path: "/api/v1/fleet/users/:id"},
+			{Method: "GET", Path: "/api/v1/fleet/users/api_only/:id/external_identities"},
 			{Method: "GET", Path: "/api/v1/fleet/sessions/:id"},
 			{Method: "DELETE", Path: "/api/v1/fleet/sessions/:id"},
 		}

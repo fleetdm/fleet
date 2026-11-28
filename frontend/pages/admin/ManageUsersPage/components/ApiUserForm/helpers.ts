@@ -1,8 +1,11 @@
 import { isPresent } from "components/forms/validators";
 import { IFormErrors } from "hooks/useFormValidation";
 import { endpointFingerprint, IApiEndpointRef } from "interfaces/api_endpoint";
+import { IExternalIdentity } from "interfaces/external_identity";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
+
+import { externalIdentityErrorKey } from "../ExternalIdentitiesSection/ExternalIdentitiesSection";
 
 export type ApiUserFormState = {
   name: string;
@@ -11,12 +14,34 @@ export type ApiUserFormState = {
   fleets: ITeam[];
   isSpecificEndpoints: boolean;
   api_endpoints: IApiEndpointRef[];
+  external_identities: IExternalIdentity[];
 };
 
 export interface IApiUserFormValidationContext {
   isPremiumTier?: boolean;
   apiEndpointCatalog?: IApiEndpointRef[];
 }
+
+// Subjects are matched byte-for-byte, so whitespace or a repeat is almost
+// certainly a mistake; the server rejects both.
+const validateExternalIdentities = (
+  identities: IExternalIdentity[],
+  errors: IFormErrors
+) => {
+  const seen = new Set<string>();
+  identities.forEach(({ issuer, subject }, index) => {
+    const key = externalIdentityErrorKey(index);
+    const identityKey = JSON.stringify([issuer, subject]);
+    if (!subject) {
+      errors[key] = "Enter a subject";
+    } else if (subject.trim() !== subject) {
+      errors[key] = "Remove leading and trailing spaces";
+    } else if (seen.has(identityKey)) {
+      errors[key] = "Remove the duplicate identity";
+    }
+    seen.add(identityKey);
+  });
+};
 
 /**
  * Drops selected endpoints the catalog no longer lists (e.g. a removed route).
@@ -56,6 +81,7 @@ export const validateApiUserForm = (
       errors.api_endpoints = "Select at least one API endpoint";
     }
   }
+  validateExternalIdentities(data.external_identities, errors);
 
   return errors;
 };

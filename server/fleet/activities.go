@@ -362,6 +362,30 @@ func (a ActivityTypeCreatedUser) ActivityName() string {
 	return "created_user"
 }
 
+type ActivityTypeAddedUserExternalIdentity struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+	Issuer    string `json:"issuer"`
+	Subject   string `json:"subject"`
+}
+
+func (a ActivityTypeAddedUserExternalIdentity) ActivityName() string {
+	return "added_user_external_identity"
+}
+
+type ActivityTypeDeletedUserExternalIdentity struct {
+	UserID    uint   `json:"user_id"`
+	UserName  string `json:"user_name"`
+	UserEmail string `json:"user_email"`
+	Issuer    string `json:"issuer"`
+	Subject   string `json:"subject"`
+}
+
+func (a ActivityTypeDeletedUserExternalIdentity) ActivityName() string {
+	return "deleted_user_external_identity"
+}
+
 type ActivityTypeDeletedUser struct {
 	UserID               uint   `json:"user_id"`
 	UserName             string `json:"user_name"`

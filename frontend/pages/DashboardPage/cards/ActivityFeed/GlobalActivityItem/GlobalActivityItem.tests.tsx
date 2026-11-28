@@ -454,6 +454,48 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
   });
 
+  it("renders an added_user_external_identity type activity globally", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserExternalIdentityAdded,
+      details: {
+        user_email: "bot@example.com",
+        issuer: "github",
+        subject: "repo:acme/mdm:environment:production",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added external identity", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("repo:acme/mdm:environment:production")
+    ).toBeInTheDocument();
+    expect(screen.getByText("github")).toBeInTheDocument();
+    expect(screen.getByText("bot@example.com")).toBeInTheDocument();
+  });
+
+  it("renders a deleted_user_external_identity type activity globally", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserExternalIdentityDeleted,
+      details: {
+        user_email: "bot@example.com",
+        issuer: "github",
+        subject: "repo:acme/mdm:environment:production",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("removed external identity", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("repo:acme/mdm:environment:production")
+    ).toBeInTheDocument();
+    expect(screen.getByText("github")).toBeInTheDocument();
+    expect(screen.getByText("bot@example.com")).toBeInTheDocument();
+  });
+
   // // // // // // // // // // // //
   // changed_user_global_role  tests
   // // // // // //// // // // // //

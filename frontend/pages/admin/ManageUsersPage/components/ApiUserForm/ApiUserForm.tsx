@@ -9,12 +9,15 @@ import Radio from "components/forms/fields/Radio";
 import useApiEndpoints from "hooks/useApiEndpoints";
 import useFormValidation from "hooks/useFormValidation";
 import { IApiEndpointRef } from "interfaces/api_endpoint";
+import { IExternalIdentity } from "interfaces/external_identity";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import { roleOptions } from "../../helpers/userManagementHelpers";
 import ApiAccessSection from "../ApiAccessSection";
+import ExternalIdentitiesSection from "../ExternalIdentitiesSection";
+import { externalIdentityErrorKey } from "../ExternalIdentitiesSection/ExternalIdentitiesSection";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 
 import {
@@ -28,6 +31,7 @@ export interface IApiUserFormData {
   global_role: UserRole | null;
   fleets: ITeam[];
   api_endpoints?: IApiEndpointRef[] | null;
+  external_identities?: IExternalIdentity[];
 }
 
 interface IApiUserFormProps {
@@ -37,6 +41,9 @@ interface IApiUserFormProps {
   defaultData?: IApiUserFormData;
   isSubmitting?: boolean;
   isPremiumTier?: boolean;
+  /** Configured `auth.jwt_issuers` names. The External identities section only
+   * shows when there are some. */
+  externalIdentityIssuers?: string[];
 }
 
 enum UserTeamType {
@@ -51,8 +58,10 @@ const ApiUserForm = ({
   availableTeams,
   defaultData,
   isSubmitting: isSubmittingProp = false,
+  externalIdentityIssuers = [],
 }: IApiUserFormProps) => {
   const isNewUser = defaultData === undefined;
+  const showExternalIdentities = externalIdentityIssuers.length > 0;
 
   // Only stored grants can be missing from the catalog; anything picked in the
   // selector comes from it.
@@ -70,6 +79,7 @@ const ApiUserForm = ({
     getTextFieldProps,
     handleSubmit,
     isSubmitting,
+    clearFieldError,
   } = useFormValidation<ApiUserFormState>({
     initialFormData: {
       name: defaultData?.name ?? "",
@@ -80,6 +90,7 @@ const ApiUserForm = ({
       // "all endpoints"
       isSpecificEndpoints: !!defaultData?.api_endpoints?.length,
       api_endpoints: defaultData?.api_endpoints ?? [],
+      external_identities: defaultData?.external_identities ?? [],
     },
     validate,
     isSubmitting: isSubmittingProp,
@@ -102,6 +113,10 @@ const ApiUserForm = ({
         ? []
         : data.fleets.map((f) => ({ ...f, role: f.role || "observer" })),
       api_endpoints: apiEndpoints,
+      // Omitted when the section is hidden so saving never clears bindings.
+      external_identities: showExternalIdentities
+        ? data.external_identities
+        : undefined,
     });
   };
 
@@ -200,6 +215,20 @@ const ApiUserForm = ({
               commitFields({ api_endpoints })
             }
             error={getError("api_endpoints")}
+            disabled={isSubmitting}
+          />
+        )}
+        {showExternalIdentities && (
+          <ExternalIdentitiesSection
+            identities={formData.external_identities}
+            issuers={externalIdentityIssuers}
+            onChange={(external_identities: IExternalIdentity[]) =>
+              commitFields({ external_identities })
+            }
+            getError={getError}
+            onSubjectFocus={(index: number) =>
+              clearFieldError(externalIdentityErrorKey(index))
+            }
             disabled={isSubmitting}
           />
         )}

@@ -248,12 +248,14 @@ func (s ServerConfig) ValidateURLPrefix(initFatal func(err error, msg string)) {
 
 // AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost                           int           `yaml:"bcrypt_cost"`
-	SaltKeySize                          int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod             time.Duration `yaml:"sso_session_validity_period"`
-	RequireHTTPMessageSignature          bool          `yaml:"require_http_message_signature"`
-	SSORateLimitPerMinute                int           `yaml:"sso_rate_limit_per_minute"`
-	RequireHostIdentityRenewalKeyBinding bool          `yaml:"require_host_identity_renewal_key_binding"`
+	BcryptCost                           int               `yaml:"bcrypt_cost"`
+	SaltKeySize                          int               `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod             time.Duration     `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature          bool              `yaml:"require_http_message_signature"`
+	SSORateLimitPerMinute                int               `yaml:"sso_rate_limit_per_minute"`
+	RequireHostIdentityRenewalKeyBinding bool              `yaml:"require_host_identity_renewal_key_binding"`
+	JWTIssuers                           []JWTIssuerConfig `yaml:"jwt_issuers"`
+	JWTRateLimitPerMinute                int               `yaml:"jwt_rate_limit_per_minute"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -1908,6 +1910,10 @@ func (man Manager) addConfigs() {
 		"Reject host identity certificate renewals from fleetd that doesn't sign over the new key (Premium feature)")
 	man.addConfigInt("auth.sso_rate_limit_per_minute", 0,
 		"Number of allowed requests per minute to the SSO callback and Fleet Desktop device SSO endpoints (each in its own bucket; defaults to the login rate limit value)")
+	man.addConfigString(jwtIssuersKey, "",
+		"External OIDC issuers whose JWTs may authenticate API-only users with a bound external identity, as a list of {name, issuer, jwks_url, audience, subject_claim, allowed_algorithms, max_token_lifetime} objects")
+	man.addConfigInt(jwtRateLimitPerMinuteKey, DefaultJWTRateLimitPerMinute,
+		"Number of external JWT authentication attempts allowed per minute from one client IP")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -2511,6 +2517,8 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			RequireHTTPMessageSignature:          man.getConfigBool("auth.require_http_message_signature"),
 			SSORateLimitPerMinute:                man.getConfigInt("auth.sso_rate_limit_per_minute"),
 			RequireHostIdentityRenewalKeyBinding: man.getConfigBool("auth.require_host_identity_renewal_key_binding"),
+			JWTIssuers:                           man.getConfigJWTIssuers(),
+			JWTRateLimitPerMinute:                man.getConfigInt(jwtRateLimitPerMinuteKey),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),

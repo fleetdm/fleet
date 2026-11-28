@@ -1,0 +1,22 @@
+.external-identities-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $pad-small;
+
+  &__row {
+    display: flex;
+    align-items: flex-end;
+    gap: $pad-small;
+    width: 100%;
+  }
+
+  &__issuer {
+    flex: 0 0 180px;
+  }
+
+  &__subject {
+    flex: 1;
+    min-width: 0;
+  }
+}

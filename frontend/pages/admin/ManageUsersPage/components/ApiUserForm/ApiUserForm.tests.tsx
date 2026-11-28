@@ -333,4 +333,108 @@ describe("ApiUserForm - stored grants the catalog no longer lists", () => {
       })
     );
   });
+
+  describe("external identities", () => {
+    const BOUND = {
+      ...FLEET_ASSIGNED,
+      external_identities: [{ issuer: "github", subject: "repo:acme/mdm" }],
+    };
+
+    it("is hidden when no issuers are configured, and saving omits bindings", async () => {
+      const onSubmit = jest.fn();
+      const { user } = renderWithSetup(
+        <ApiUserForm
+          {...defaultProps}
+          defaultData={BOUND}
+          onSubmit={onSubmit}
+        />
+      );
+
+      expect(screen.queryByText("External identities")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ external_identities: undefined })
+      );
+    });
+
+    it("submits added and existing bindings", async () => {
+      const onSubmit = jest.fn();
+      const { user } = renderWithSetup(
+        <ApiUserForm
+          {...defaultProps}
+          defaultData={BOUND}
+          onSubmit={onSubmit}
+          externalIdentityIssuers={["github"]}
+        />
+      );
+
+      expect(screen.getByDisplayValue("repo:acme/mdm")).toBeInTheDocument();
+      await user.click(
+        screen.getByRole("button", { name: /Add external identity$/ })
+      );
+      const subjects = screen.getAllByLabelText("Subject");
+      await user.type(subjects[1], "repo:acme/apps");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          external_identities: [
+            { issuer: "github", subject: "repo:acme/mdm" },
+            { issuer: "github", subject: "repo:acme/apps" },
+          ],
+        })
+      );
+    });
+
+    it("submits an empty list after removing every binding", async () => {
+      const onSubmit = jest.fn();
+      const { user } = renderWithSetup(
+        <ApiUserForm
+          {...defaultProps}
+          defaultData={BOUND}
+          onSubmit={onSubmit}
+          externalIdentityIssuers={["github"]}
+        />
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "Remove external identity 1" })
+      );
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ external_identities: [] })
+      );
+    });
+
+    it.each([
+      ["", "Enter a subject"],
+      [" repo:acme/mdm", "Remove leading and trailing spaces"],
+      ["repo:acme/mdm", "Remove the duplicate identity"],
+    ])(
+      "rejects the subject %p with %p",
+      async (subject: string, message: string) => {
+        const onSubmit = jest.fn();
+        const { user } = renderWithSetup(
+          <ApiUserForm
+            {...defaultProps}
+            defaultData={BOUND}
+            onSubmit={onSubmit}
+            externalIdentityIssuers={["github"]}
+          />
+        );
+
+        await user.click(
+          screen.getByRole("button", { name: /Add external identity$/ })
+        );
+        if (subject) {
+          await user.type(screen.getAllByLabelText("Subject")[1], subject);
+        }
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(screen.getByText(message)).toBeInTheDocument();
+      }
+    );
+  });
 });

@@ -82,6 +82,13 @@ type Datastore interface {
 	UsersByIDs(ctx context.Context, ids []uint) ([]*UserSummary, error)
 	UserByEmail(ctx context.Context, email string) (*User, error)
 	UserByID(ctx context.Context, id uint) (*User, error)
+	// UserByExternalIdentity returns the user bound to the (issuer name, subject) pair.
+	UserByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error)
+	// ListUserExternalIdentities returns the user's bindings ordered by issuer, subject.
+	ListUserExternalIdentities(ctx context.Context, userID uint) ([]ExternalIdentity, error)
+	// SetUserExternalIdentities replaces the user's bindings and reports what changed. It
+	// returns a *ConflictError if an identity is already bound to a different user.
+	SetUserExternalIdentities(ctx context.Context, userID uint, ids []ExternalIdentity) (added, removed []ExternalIdentity, err error)
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	SaveUser(ctx context.Context, user *User) error
 	SaveUsers(ctx context.Context, users []*User) error
