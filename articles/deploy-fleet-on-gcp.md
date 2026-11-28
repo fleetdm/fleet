@@ -100,6 +100,7 @@ fleet_config = {
 | `fleet_config.image_tag` | The Docker image tag for the Fleet version you want to deploy (e.g., `fleetdm/fleet:v4.67.3`). |
 | `fleet_config.exec_migration` |  Set to `true` when you are upgrading the `fleet_config.image_tag` to automatically run database migrations. Set to `false` if you want to manage migrations manually or if it's not an image upgrade. |
 | `fleet_config.license_key` (Optional, inside the `fleet_config` object) | Your Fleet license key if you have one. |
+| `tmp_volume_config` (Optional) | Mounts a disk at `/tmp` so software packages don't use instance memory. Off by default. Best practice. See [Store temporary files on disk](#store-temporary-files-on-disk). |
 
 > Note: Review [`variables.tf`](https://github.com/fleetdm/fleet-terraform/blob/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp/variables.tf) and [`byo-project/variables.tf`](https://github.com/fleetdm/fleet-terraform/blob/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp/byo-project/variables.tf) for all available options and their defaults.
 
@@ -188,6 +189,32 @@ terraform destroy
 ```
 
 3.  Confirm by typing `yes` when prompted.
+
+## Store temporary files on disk
+
+By default, Cloud Run keeps `/tmp` in memory. Fleet stores software packages in `/tmp` while it processes them, so large packages use up the instance's memory and can make Fleet crash or hang. This happens when you add or edit a package, and when GitOps downloads packages from a URL. During a GitOps run, Fleet keeps every downloaded package until the run finishes.
+
+As a best practice, turn on a disk-backed `/tmp`:
+
+```hcl
+tmp_volume_config = {
+  enable   = true
+  size_gib = 10 # 1 to 100. Above 10 requires a per-instance quota increase.
+}
+```
+
+Before you turn it on, check your project's Cloud Run ephemeral disk quota in your region. It can start at 0 GiB. The quota needs to cover `size_gib` x `max_instance_count`, plus room for rollouts. Cloud Run bills the full disk size for each running instance. Learn more in the [module README](https://github.com/fleetdm/fleet-terraform/tree/main/gcp#disk-backed-tmp-opt-in).
+
+This requires version 2.1.0 or later of the GCP module.
+
+Choose a size with free space of at least:
+
+- 2x the size of your largest package, and
+- the total size of all packages added or updated in your largest GitOps run.
+
+The default maximum package size is 10 GiB ([`server_max_installer_size`](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-max-installer-size)).
+
+Fleet uses the operating system's temporary folder. If you mount a disk somewhere other than `/tmp`, set the `TMPDIR` environment variable on the Fleet service to that path.
 
 ## Important Considerations
 

@@ -477,6 +477,8 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 - Cloud SQL MySQL 8.0 (Fleet database)
 - Memorystore Redis (Fleet cache & live report orchestrator)
 
+As a best practice, store temporary files on disk. See [Deploy Fleet on GCP](https://fleetdm.com/guides/deploy-fleet-on-gcp#store-temporary-files-on-disk).
+
 GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 ##### Example configuration breakpoints
