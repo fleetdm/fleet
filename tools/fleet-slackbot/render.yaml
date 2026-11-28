@@ -8,6 +8,10 @@ services:
     startCommand: node app.js
     healthCheckPath: /healthz
     envVars:
+      # Without this, Render resolves the open-ended engines range to the
+      # newest Node release rather than an LTS line.
+      - key: NODE_VERSION
+        value: "24"
       - key: SLACK_BOT_TOKEN
         sync: false
       - key: SLACK_APP_TOKEN
