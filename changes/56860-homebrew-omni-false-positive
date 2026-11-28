@@ -1,0 +1,1 @@
+- Fixed false positive vulnerabilities (CVE-2026-45720, CVE-2026-45723, CVE-2026-45726) reported for the Omni Analytics CLI installed with Homebrew (`omni`), which was incorrectly matched to the CPE of Sidero Omni.

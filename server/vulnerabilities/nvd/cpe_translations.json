@@ -395,6 +395,24 @@
   },
   {
     "software": {
+      "name": ["mako"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["omni"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["ms-python.python"],
       "source": ["vscode_extensions"]
     },

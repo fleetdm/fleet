@@ -2196,6 +2196,35 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: "",
 		},
 		{
+			// The Homebrew "mako" formula is the makojs web bundler, which has no CPE of its own.
+			// Without a translation it matched sqlalchemy:mako, the Python template library.
+			software: fleet.Software{
+				Name:    "mako",
+				Source:  "homebrew_packages",
+				Version: "0.11.15",
+			},
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "mako",
+				Source:  "python_packages",
+				Version: "1.3.10",
+			},
+			cpe: "cpe:2.3:a:sqlalchemy:mako:1.3.10:*:*:*:*:python:*:*",
+		},
+		{
+			// The "omni" formula from the exploreomni tap is the Omni Analytics CLI, which has no CPE
+			// of its own. Without a translation it matched siderolabs:omni (Sidero Omni), whose CLI
+			// ships in Homebrew as "omnictl".
+			software: fleet.Software{
+				Name:    "omni",
+				Source:  "homebrew_packages",
+				Version: "1.0.0",
+			},
+			cpe: "",
+		},
+		{
 			// The Homebrew "codex" formula is the OpenAI Codex CLI, which has no CPE of its own.
 			// Without a translation it matched codexnotes:codex, a notes app, and inherited its
 			// CVEs (CVE-2021-43635).
