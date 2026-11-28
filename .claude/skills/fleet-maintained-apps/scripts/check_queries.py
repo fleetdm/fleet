@@ -139,6 +139,13 @@ def constrain_apps(sql, paths):
     return "".join(result)
 
 
+# --app-path usually points at a mounted disk image, which generated queries exclude.
+NOT_ON_DISK_IMAGE = re.compile(
+    r" AND NOT EXISTS \(SELECT 1 FROM mounts m JOIN block_devices b ON b\.name = m\.device "
+    r"WHERE b\.model = 'Disk Image' AND substr\(\w+\.path, 1, length\(m\.path\) \+ 1\) = m\.path \|\| '/'\)"
+)
+
+
 PATH_PIN = re.compile(r"\bpath\s*(=|LIKE\b)\s*'((?:[^']|'')*)'", re.I)
 
 
@@ -253,7 +260,7 @@ def main():
                 if pin:
                     print(f"  {k:<16} not run: pins path to '{pin}', which --app-path doesn't match; test with the app installed there")
                     continue
-                sql = constrain_apps(sql, a.app_path)
+                sql = constrain_apps(NOT_ON_DISK_IMAGE.sub("", sql), a.app_path)
             print(f"  {k:<16} {run_osquery(a.osqueryd, sql)}")
 
     print(

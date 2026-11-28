@@ -141,8 +141,16 @@ func GenerateFromInstaller(p PolicyData, installer *fleet.SoftwareInstaller) (*P
 }
 
 func defaultMacOSQuery(bundleIdentifier string, version string) string {
-	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);"
-	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version))
+	patchTemplate := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0 AND %s);"
+	return fmt.Sprintf(patchTemplate, escapeSQLLiteral(bundleIdentifier), escapeSQLLiteral(version), MacOSNotOnDiskImage("apps"))
+}
+
+// MacOSNotOnDiskImage excludes apps on a mounted disk image. The qualifier is required because mounts also has a path column.
+func MacOSNotOnDiskImage(qualifier string) string {
+	return fmt.Sprintf(
+		"NOT EXISTS (SELECT 1 FROM mounts m JOIN block_devices b ON b.name = m.device WHERE b.model = 'Disk Image' AND substr(%[1]s.path, 1, length(m.path) + 1) = m.path || '/')",
+		qualifier,
+	)
 }
 
 func defaultWindowsQuery(softwareTitle string, version string) string {

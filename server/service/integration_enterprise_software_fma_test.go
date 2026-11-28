@@ -31,6 +31,7 @@ import (
 
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
@@ -2627,7 +2628,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.Equal(t, "macOS - DummyApp up to date", policyResp.Policy.Name)
 		require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", policyResp.Policy.Description)
 		require.Equal(t, "Install the latest version from self-service.", *policyResp.Policy.Resolution)
-		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.dummy' AND version_compare(bundle_short_version, '1.0.0') < 0);", policyResp.Policy.Query)
+		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.dummy' AND version_compare(bundle_short_version, '1.0.0') < 0 AND "+patch_policy.MacOSNotOnDiskImage("apps")+");", policyResp.Policy.Query)
 		require.NotNil(t, policyResp.Policy.PatchSoftware)
 		require.Equal(t, titleID, policyResp.Policy.PatchSoftware.SoftwareTitleID)
 		policyID := policyResp.Policy.ID

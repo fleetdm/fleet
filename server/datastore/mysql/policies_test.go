@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -9458,7 +9459,7 @@ func testSyncPatchPolicyQueries(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	const staleQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.stale' AND version_compare(bundle_short_version, '1.0') < 0);"
+	staleQuery := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.stale' AND version_compare(bundle_short_version, '1.0') < 0 AND " + patch_policy.MacOSNotOnDiskImage("apps") + ");"
 	const fixedQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.stale' AND version_compare(bundle_version, '100') < 0);"
 	const otherQuery = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.other' AND version_compare(bundle_short_version, '1.0') < 0);"
 
@@ -9654,7 +9655,8 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 		PatchSoftwareTitleID: &titleID,
 	})
 	require.NoError(t, err)
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p1.Query)
+	defaultPatchQuery := "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0 AND " + patch_policy.MacOSNotOnDiskImage("apps") + ");"
+	require.Equal(t, defaultPatchQuery, p1.Query)
 
 	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:     "p2",
@@ -9678,7 +9680,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Outdated software might introduce security vulnerabilities or compatibility issues.", p3.Description)
 	require.Equal(t, "Install the latest version from self-service.", *p3.Resolution)
 	require.Equal(t, "darwin", p3.Platform)
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p3.Query)
+	require.Equal(t, defaultPatchQuery, p3.Query)
 
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{p3.ID})
 	require.NoError(t, err)
@@ -9696,7 +9698,7 @@ func testTeamPatchPolicy(t *testing.T, ds *Datastore) {
 	require.Equal(t, "description", p4.Description)
 	require.Equal(t, "resolution", *p4.Resolution)
 	require.Equal(t, "darwin", p4.Platform)
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'fleet.maintained1' AND version_compare(bundle_short_version, '1.0') < 0);", p4.Query)
+	require.Equal(t, defaultPatchQuery, p4.Query)
 
 	// test GetPatchPolicy
 	data, err := ds.GetPatchPolicy(ctx, &team1.ID, titleID)

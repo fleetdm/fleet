@@ -265,6 +265,10 @@ func TestIngestValidations(t *testing.T) {
 
 			require.NoError(t, err)
 
+			for _, query := range []*string{&out.Queries.Exists, &out.Queries.Patched, &out.Queries.Open} {
+				*query = withoutDiskImageCondition(t, *query)
+			}
+
 			if c.inputApp.InstallScriptPath != "" {
 				require.Equal(t, testInstallScriptContents, out.InstallScript)
 			}
@@ -415,7 +419,7 @@ func TestIngestValidations(t *testing.T) {
 				// Wave Link 2 counts as outdated only at the path the install replaces, on macOS 15+.
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.WaveLink3';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.elgato.WaveLink3' AND version_compare(bundle_short_version, '1.0') < 0) OR (bundle_identifier = 'com.elgato.WaveLink' AND path = '/Applications/Elgato Wave Link.app' AND (SELECT major FROM os_version) >= 15));",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE ((bundle_identifier = 'com.elgato.WaveLink3' AND version_compare(bundle_short_version, '1.0') < 0) OR (bundle_identifier = 'com.elgato.WaveLink' AND path = '/Applications/Elgato Wave Link.app' AND (SELECT major FROM os_version) >= 15)));",
 					out.Queries.Patched,
 				)
 			case "qgis":
@@ -435,7 +439,7 @@ func TestIngestValidations(t *testing.T) {
 				// ChatGPT reports com.openai.codex since OpenAI rebuilt it on the Codex app;
 				// older installs still report com.openai.chat, so both are matched. The
 				// patched query is generated from the exists query.
-				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');", out.Queries.Exists)
+				require.Equal(t, "SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT'));", out.Queries.Exists)
 				require.Equal(t,
 					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
 					out.Queries.Patched,
@@ -444,7 +448,7 @@ func TestIngestValidations(t *testing.T) {
 				// XQuartz 2.7.x at the pkg's install path still reports the legacy bundle ID.
 				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.xquartz.X11';", out.Queries.Exists)
 				require.Equal(t,
-					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'org.macosforge.xquartz.X11' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = 'org.xquartz.X11' AND version_compare(bundle_short_version, '1.0') < 0));",
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE ((bundle_identifier = 'org.macosforge.xquartz.X11' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = 'org.xquartz.X11' AND version_compare(bundle_short_version, '1.0') < 0)));",
 					out.Queries.Patched,
 				)
 			case "enpass", "gog-galaxy":
@@ -815,7 +819,7 @@ func TestWeChatPatchedQueryBuild(t *testing.T) {
 			CaskPath:         caskPath,
 		})
 		require.NoError(t, err, "caskVersion %q", c.caskVersion)
-		require.Equal(t, c.want, out.Queries.Patched, "caskVersion %q", c.caskVersion)
+		require.Equal(t, c.want, withoutDiskImageCondition(t, out.Queries.Patched), "caskVersion %q", c.caskVersion)
 	}
 }
 
@@ -863,7 +867,7 @@ func TestBundleVersionPatchedQueryUsesCaskVersion(t *testing.T) {
 			require.Equal(t, fmt.Sprintf(
 				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
 				c.bundleID, c.wantPatched,
-			), out.Queries.Patched)
+			), withoutDiskImageCondition(t, out.Queries.Patched))
 		})
 	}
 }
@@ -920,7 +924,7 @@ func TestFirefoxDevEditionBuildhubFallback(t *testing.T) {
 			require.Equal(t, "153.0b13", out.Version)
 			require.Equal(t,
 				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_short_version, '153.0') < 0);",
-				out.Queries.Patched,
+				withoutDiskImageCondition(t, out.Queries.Patched),
 			)
 		})
 	}
