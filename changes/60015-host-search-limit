@@ -1,0 +1,1 @@
+Fixed host target search returning fewer matches when recently added hosts were already selected. The search dropdown now explains the ten-result limit when it is reached.

@@ -3789,6 +3789,16 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 			searchHostsQuery += " UNION " + union
 			args = wildCardArgs
 		}
+		// Filter the combined matches before selecting the ten newest IDs.
+		if len(omit) > 0 {
+			searchHostsQuery = "SELECT id FROM (" + searchHostsQuery + ") AS matches WHERE id NOT IN (?)"
+			args = append(args, omit)
+			var err error
+			searchHostsQuery, args, err = sqlx.In(searchHostsQuery, args...)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "excluding hosts from search")
+			}
+		}
 		searchHostsQuery += " ORDER BY id DESC LIMIT 10"
 		searchHostsQuery = ds.reader(ctx).Rebind(searchHostsQuery)
 		err := sqlx.SelectContext(ctx, ds.reader(ctx), &matchingHostIDs, searchHostsQuery, args...)
@@ -3806,7 +3816,7 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 		args = append(args, matchingHostIDs)
 		query += " h.id IN (?) AND "
 	}
-	if len(omit) > 0 {
+	if len(matchQuery) == 0 && len(omit) > 0 {
 		args = append(args, omit)
 		query += " h.id NOT IN (?) AND "
 	}
