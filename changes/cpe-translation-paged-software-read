@@ -1,0 +1,1 @@
+- Reduced load on the database reader during vulnerability processing.
