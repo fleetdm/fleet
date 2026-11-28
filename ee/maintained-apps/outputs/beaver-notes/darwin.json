@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.4.0",
+      "version": "5.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielerolli.beaver-notes';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielerolli.beaver-notes' AND version_compare(bundle_short_version, '4.4.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.danielerolli.beaver-notes' AND version_compare(bundle_short_version, '5.0.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.danielerolli.beaver-notes' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Beaver-Notes/Beaver-Notes/releases/download/4.4.0/Beaver-notes-4.4.0-universal.dmg",
+      "installer_url": "https://github.com/Beaver-Notes/Beaver-Notes/releases/download/v5.0.0/Beaver.Notes_5.0.0_universal.dmg",
       "install_script_ref": "64ab9f6a",
       "uninstall_script_ref": "fb7d7201",
-      "sha256": "c2b83192c2b25542e8c8d5ffcaa4152e0175208de1d5caefa83095c6fd064f43",
+      "sha256": "eb467931d8873d19b949e85dddb81fcf58f628273fe85caf796dcd91eca37194",
       "default_categories": [
         "Productivity"
       ]
