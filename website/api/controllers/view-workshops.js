@@ -79,8 +79,8 @@ module.exports = {
       });
 
       await sails.helpers.flow.simultaneouslyForEach(eventsToGetDetailsFor, async (event)=>{
-        // Determine if this event is a GitOps workshop or an Apple administrator workshop.
-        let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' :  _.contains(event.name.text.toLowerCase(), 'windows administrator') ? 'Windows administrator workshop' : undefined;
+        // Determine which kind of workshop this event is.
+        let eventType = _.contains(event.name.text.toLowerCase(), 'gitops') ? 'GitOps workshop' : _.contains(event.name.text.toLowerCase(), 'apple administrator') ? 'Apple administrator workshop' :  _.contains(event.name.text.toLowerCase(), 'windows administrator') ? 'Windows administrator workshop' : _.contains(event.name.text.toLowerCase(), 'linux administrator') ? 'Linux administrator workshop' : undefined;
         // If it is not one of those types of events, skip it.
         if(!eventType) {
           return;
@@ -134,11 +134,16 @@ module.exports = {
           eventbriteLink: event.url,
           eventTime: eventTimeDetailsString,
           startsAt: eventStartsAt,
+          // The year in the event's own time zone, so a late Dec 31 event isn't grouped under the next year.
+          startYear: Number(new Intl.DateTimeFormat('en-US', { timeZone: eventTimeZone, year: 'numeric' }).format(eventStartsOn)),
           type: eventType,
         };
 
-        // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
-        if(event.venue_id) {
+        if(event.online_event) {
+          eventDetails.workshopCity = 'Online';
+          eventDetails.workshopAddress = 'Online';
+        } else if(event.venue_id) {
+          // If an event has a venue_id, we'll send a request to the Eventbrite API to get details about the venue.
           let eventVenueResponse = await sails.helpers.http.get.with({
             url: `https://www.eventbriteapi.com/v3/venues/${event.venue_id}/`,
             headers: {
