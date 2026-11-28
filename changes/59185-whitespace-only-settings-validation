@@ -1,0 +1,1 @@
+- Fixed form fields validating whitespace-only or padded values differently on blur than on save (e.g. the Fleet web address and SMTP settings): blur now validates the same trimmed values that save sends.
