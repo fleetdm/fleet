@@ -1,0 +1,9 @@
+{
+  "name": "Cap",
+  "slug": "cap/darwin",
+  "unique_identifier": "so.cap.desktop",
+  "token": "cap",
+  "installer_format": "zip",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/cap_install.sh"
+}
