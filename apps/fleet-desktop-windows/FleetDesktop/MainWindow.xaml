@@ -1,0 +1,33 @@
+<Window x:Class="FleetDesktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        Title="Fleet Desktop"
+        Width="1100"
+        Height="750"
+        MinWidth="480"
+        MinHeight="360"
+        WindowStartupLocation="CenterScreen"
+        UseLayoutRounding="True">
+    <Window.TaskbarItemInfo>
+        <TaskbarItemInfo />
+    </Window.TaskbarItemInfo>
+    <Grid x:Name="RootGrid" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
+        <wv2:WebView2 x:Name="WebView" />
+        <Grid x:Name="LoadingOverlay"
+              Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}"
+              Visibility="Visible">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Image x:Name="LoadingLogo"
+                       Width="80"
+                       Height="80"
+                       Source="pack://application:,,,/Assets/fleet-logo.png"
+                       Stretch="Uniform" />
+                <ProgressBar Width="64"
+                             Height="4"
+                             Margin="0,20,0,0"
+                             IsIndeterminate="True" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
