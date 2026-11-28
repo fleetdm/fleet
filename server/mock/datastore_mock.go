@@ -1972,6 +1972,16 @@ type CleanupUnusedSoftwareInstallersFunc func(ctx context.Context, softwareInsta
 
 type CleanupHostSoftwareInstallsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
 
+type CleanupVPPAppInstallAttemptsFunc func(ctx context.Context, olderThan time.Time) (int64, error)
+
+type RefreshVPPAppInstallStateBatchFunc func(ctx context.Context, afterKey string, limit int) (string, int, error)
+
+type DeleteOrphanVPPAppInstallStateFunc func(ctx context.Context) (int64, error)
+
+type GetVPPAppInstallStateBackfillCursorFunc func(ctx context.Context) (string, error)
+
+type SetVPPAppInstallStateBackfillCursorFunc func(ctx context.Context, cursor string) error
+
 type SaveInHouseAppUpdatesFunc func(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error
 
 type GetInHouseAppMetadataByTeamAndTitleIDFunc func(ctx context.Context, teamID *uint, titleID uint) (*fleet.SoftwareInstaller, error)
@@ -5584,6 +5594,21 @@ type DataStore struct {
 
 	CleanupHostSoftwareInstallsFunc        CleanupHostSoftwareInstallsFunc
 	CleanupHostSoftwareInstallsFuncInvoked bool
+
+	CleanupVPPAppInstallAttemptsFunc        CleanupVPPAppInstallAttemptsFunc
+	CleanupVPPAppInstallAttemptsFuncInvoked bool
+
+	RefreshVPPAppInstallStateBatchFunc        RefreshVPPAppInstallStateBatchFunc
+	RefreshVPPAppInstallStateBatchFuncInvoked bool
+
+	DeleteOrphanVPPAppInstallStateFunc        DeleteOrphanVPPAppInstallStateFunc
+	DeleteOrphanVPPAppInstallStateFuncInvoked bool
+
+	GetVPPAppInstallStateBackfillCursorFunc        GetVPPAppInstallStateBackfillCursorFunc
+	GetVPPAppInstallStateBackfillCursorFuncInvoked bool
+
+	SetVPPAppInstallStateBackfillCursorFunc        SetVPPAppInstallStateBackfillCursorFunc
+	SetVPPAppInstallStateBackfillCursorFuncInvoked bool
 
 	SaveInHouseAppUpdatesFunc        SaveInHouseAppUpdatesFunc
 	SaveInHouseAppUpdatesFuncInvoked bool
@@ -13439,6 +13464,41 @@ func (s *DataStore) CleanupHostSoftwareInstalls(ctx context.Context, olderThan t
 	s.CleanupHostSoftwareInstallsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupHostSoftwareInstallsFunc(ctx, olderThan)
+}
+
+func (s *DataStore) CleanupVPPAppInstallAttempts(ctx context.Context, olderThan time.Time) (int64, error) {
+	s.mu.Lock()
+	s.CleanupVPPAppInstallAttemptsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupVPPAppInstallAttemptsFunc(ctx, olderThan)
+}
+
+func (s *DataStore) RefreshVPPAppInstallStateBatch(ctx context.Context, afterKey string, limit int) (string, int, error) {
+	s.mu.Lock()
+	s.RefreshVPPAppInstallStateBatchFuncInvoked = true
+	s.mu.Unlock()
+	return s.RefreshVPPAppInstallStateBatchFunc(ctx, afterKey, limit)
+}
+
+func (s *DataStore) DeleteOrphanVPPAppInstallState(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.DeleteOrphanVPPAppInstallStateFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrphanVPPAppInstallStateFunc(ctx)
+}
+
+func (s *DataStore) GetVPPAppInstallStateBackfillCursor(ctx context.Context) (string, error) {
+	s.mu.Lock()
+	s.GetVPPAppInstallStateBackfillCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppInstallStateBackfillCursorFunc(ctx)
+}
+
+func (s *DataStore) SetVPPAppInstallStateBackfillCursor(ctx context.Context, cursor string) error {
+	s.mu.Lock()
+	s.SetVPPAppInstallStateBackfillCursorFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetVPPAppInstallStateBackfillCursorFunc(ctx, cursor)
 }
 
 func (s *DataStore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) error {

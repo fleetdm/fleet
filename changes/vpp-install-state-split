@@ -1,0 +1,1 @@
+- App Store app install status now reads from a per-host state table, and each install attempt is kept in a log pruned after `server.vpp_install_attempts_retention` (default 30 days).

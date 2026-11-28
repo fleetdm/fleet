@@ -115,6 +115,7 @@ func TestSoftwareInstallers(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 			c.fn(t, ds)
 		})
 	}
@@ -8740,10 +8741,7 @@ VALUES `+strings.Join(placeholders, ","), args...)
 	// hosts, so nothing proportional to the other teams' history may be read; a
 	// window function over the whole title reads all of it before the team filter
 	// applies.
-	// Same two bounds for the VPP builder. host_vpp_software_installs has no
-	// host_id-leading index, so a per-host lookup here rescans the app's whole
-	// history for every candidate host — the shape that is right for
-	// host_software_installs is wrong for this table.
+	// Keep the same bounds for VPP's state-backed status join.
 	// Its own title: installerAvailableForInstallForTeamAndTitleID prefers a software
 	// installer over a VPP app, so sharing a title would never reach vppAppJoin.
 	vppAdamID := "history-depth-adam"
@@ -8799,6 +8797,7 @@ VALUES `+strings.Join(placeholders, ","), args...)
 	seedVPPHistory("deep", deepIDs, deepDepth)
 	seedVPPHistory("breadth", breadthIDs, shallowDepth)
 	seedVPPHistory("narrow", narrowIDs, shallowDepth)
+	refreshVPPAppInstallStateForTest(t, ds)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `ANALYZE TABLE host_vpp_software_installs`)
 		return err
@@ -8817,8 +8816,7 @@ VALUES `+strings.Join(placeholders, ","), args...)
 		return rowsTouched() - before
 	}
 
-	// Measured here, deep case: 37,707 ranking the app once, 551,258 with a per-host
-	// lookup that has no index to serve it (50 hosts x the app's whole 11,010 rows).
+	// History depth must not multiply the request lookups per host.
 	vppNarrowTouched := countVPPFilteredTo(narrowTeam, narrowHosts)
 	require.Less(t, vppNarrowTouched, int64(200000),
 		"VPP status filter must not rescan the app's install history per candidate host")

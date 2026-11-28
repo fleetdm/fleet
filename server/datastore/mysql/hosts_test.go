@@ -234,6 +234,7 @@ func TestHosts(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+			defer assertVPPAppInstallStateMatchesRequests(t, ds)
 
 			c.fn(t, ds)
 		})
@@ -5402,6 +5403,7 @@ func testHostsListByInstallerAndVPPVersion(t *testing.T, ds *Datastore) {
 				hostID, uuid.NewString(), versionID)
 			return err
 		})
+		refreshVPPAppInstallStateForTest(t, ds)
 	}
 	linkVPPInstall(host1.ID, version1)
 	linkVPPInstall(host2.ID, version2)
@@ -10614,6 +10616,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		cmdUUID,
 	)
 	require.NoError(t, err)
+	refreshVPPAppInstallStateForTest(t, ds)
 
 	// Assert the host_vpp_software_installs row exists to delete along with DeleteHost
 	var count int
@@ -10624,6 +10627,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
+	err = refreshVPPAppInstallState(ctx, ds.writer(ctx), []hostVPPAppKey{{HostID: host.ID, AdamID: va.AdamID, Platform: string(va.Platform)}})
+	require.NoError(t, err)
 
 	// Insert into conditional_access_scep_certificates table
 	result, err = ds.writer(context.Background()).Exec(`INSERT INTO conditional_access_scep_serials () VALUES ()`)
