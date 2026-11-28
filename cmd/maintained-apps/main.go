@@ -160,11 +160,11 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 
 	platform := outApp.Platform()
 	platformNameSuffix := regexp.MustCompile(` for (macOS|Mac|Windows)$`)
-	var found bool
+	foundIdx := -1
 	var existingSlugWithSameName string
-	for _, a := range outputAppsFile.Apps {
+	for i, a := range outputAppsFile.Apps {
 		if a.Slug == outApp.Slug {
-			found = true
+			foundIdx = i
 			continue
 		}
 
@@ -175,7 +175,13 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		}
 	}
 
-	if !found {
+	// Existing entries keep their hand-edited fields; only the derived name-match flag
+	// follows the input, since the server's title matching depends on it.
+	changed := true
+	if foundIdx >= 0 {
+		changed = outputAppsFile.Apps[foundIdx].ExactNameMatch != outApp.ExactNameMatch
+		outputAppsFile.Apps[foundIdx].ExactNameMatch = outApp.ExactNameMatch
+	} else {
 		if platform == "" {
 			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
 		}
@@ -188,11 +194,14 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 			Slug:             outApp.Slug,
 			Platform:         platform,
 			UniqueIdentifier: outApp.UniqueIdentifier,
+			ExactNameMatch:   outApp.ExactNameMatch,
 		})
 
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
+	}
 
+	if changed {
 		var buf bytes.Buffer
 		encoder := json.NewEncoder(&buf)
 		encoder.SetEscapeHTML(false)

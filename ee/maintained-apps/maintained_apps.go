@@ -37,6 +37,8 @@ type FMAManifestApp struct {
 	DefaultCategories  []string   `json:"default_categories"`
 	Frozen             bool       `json:"-"`
 	UpgradeCode        string     `json:"upgrade_code,omitempty"`
+	// ExactNameMatch is written to apps.json only, so it stays out of the app manifest.
+	ExactNameMatch bool `json:"-"`
 }
 
 func (a *FMAManifestApp) Platform() string {
@@ -77,7 +79,11 @@ type FMAListFileApp struct {
 	Slug             string `json:"slug"`
 	Platform         string `json:"platform"`
 	UniqueIdentifier string `json:"unique_identifier"`
-	Description      string `json:"description"`
+	// ExactNameMatch is set on a Windows app whose installed program reports exactly
+	// UniqueIdentifier as its name, never a versioned or longer one. Fleet then files
+	// only that exact name under the app's software title.
+	ExactNameMatch bool   `json:"exact_name_match,omitempty"`
+	Description    string `json:"description"`
 }
 
 type FMAListFile struct {

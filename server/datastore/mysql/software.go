@@ -1271,6 +1271,9 @@ type windowsFMAPrefix struct {
 	prefix    string
 	titleName string
 	titleID   uint
+	// exact limits the match to the prefix alone, for an app whose program reports
+	// exactly that name (see MaintainedApp.ExactNameMatch).
+	exact bool
 }
 
 // windowsFMAPrefixes flattens Windows FMAs into their candidate prefixes. Computed
@@ -1286,6 +1289,7 @@ func windowsFMAPrefixes(fmas []fleet.MaintainedApp) []windowsFMAPrefix {
 				prefix:    normalizeSoftwareNameForMatch(p),
 				titleName: f.TitleName,
 				titleID:   *f.TitleID,
+				exact:     f.ExactNameMatch,
 			})
 		}
 	}
@@ -1304,11 +1308,13 @@ func normalizeSoftwareNameForMatch(s string) string {
 //
 // A candidate matches when the reported name equals it or begins with
 // "<candidate> " — the trailing space is what keeps "Zoombie 5.0" away from the
-// "Zoom" FMA. The longest matching candidate wins so a more specific app is
-// preferred, and a tie between candidates resolving to different titles is treated as
-// no match: there is no principled winner, and merging into the wrong app is worse
-// than leaving the title alone. This mirrors the rule the darwin reconcile passes
-// apply to a bundle identifier shared by more than one FMA.
+// "Zoom" FMA. An exact-name app's candidates match only by equality, so "Microsoft
+// Teams Meeting Add-in for Microsoft Office" stays off "Microsoft Teams". The longest
+// matching candidate wins so a more specific app is preferred, and a tie between
+// candidates resolving to different titles is treated as no match: there is no
+// principled winner, and merging into the wrong app is worse than leaving the title
+// alone. This mirrors the rule the darwin reconcile passes apply to a bundle
+// identifier shared by more than one FMA.
 func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAPrefix, bool) {
 	normalized := normalizeSoftwareNameForMatch(name)
 
@@ -1319,7 +1325,7 @@ func matchWindowsFMATitle(name string, prefixes []windowsFMAPrefix) (windowsFMAP
 		if len(p.prefix) < bestLen {
 			continue
 		}
-		if normalized != p.prefix && !strings.HasPrefix(normalized, p.prefix+" ") {
+		if normalized != p.prefix && (p.exact || !strings.HasPrefix(normalized, p.prefix+" ")) {
 			continue
 		}
 		switch {
