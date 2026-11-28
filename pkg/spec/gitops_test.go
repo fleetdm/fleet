@@ -7349,6 +7349,7 @@ func TestProfileRenewalVariableDeprecation(t *testing.T) {
 			if tc.wantWarning {
 				require.Len(t, warnings, 1)
 				assert.Contains(t, warnings[0], path)
+				assert.Contains(t, warnings[0], "is deprecated")
 				assert.Contains(t, warnings[0], "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
 			} else {
 				assert.Empty(t, warnings)

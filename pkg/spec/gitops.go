@@ -1810,7 +1810,7 @@ func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps, 
 	}
 	contents := string(fileBytes)
 	if logFn != nil && fleet.ContainsVar(contents, fleet.ServerVarPrefix+string(fleet.FleetVarSCEPRenewalID)) {
-		logFn("[!] %s uses deprecated %s. Replace it with %s before upgrading to Fleet 6.\n",
+		logFn("[!] %s: %s is deprecated. Replace it with %s before upgrading to Fleet 6.\n",
 			profile.Path, fleet.FleetVarSCEPRenewalID.WithPrefix(), fleet.FleetVarCertificateRenewalID.WithPrefix())
 	}
 	return LookupEnvSecrets(contents, result.FleetSecrets)
