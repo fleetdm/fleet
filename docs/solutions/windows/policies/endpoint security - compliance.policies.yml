@@ -1,0 +1,47 @@
+- name: ES-008 - Windows - Compliance - Password Policy
+  platform: windows
+  description: "Verifies Windows compliance with password policy requirements. Checks that CTRL+ALT+DEL is required at logon (DisableCAD = 0)."
+  resolution: "Configure Local Security Policy to require CTRL+ALT+DEL at logon. Run the configure-local-security-policy script."
+  query: SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\DisableCAD' AND data = '0';
+
+- name: ES-009 - Windows - Operating System Version
+  platform: windows
+  description: "Verifies the device meets minimum operating system version requirements (Windows 10 build 22000 or later)."
+  resolution: "Upgrade the operating system to Windows 10 version 21H2 (build 22000) or later."
+  query: SELECT 1 FROM os_version WHERE platform = 'windows' AND major >= 10 AND build >= 22000;
+
+- name: ES-010 - Windows - Thin Client Check
+  platform: windows
+  description: "Verifies the device is not a thin client. Thin clients may have different compliance requirements."
+  resolution: "This policy is for standard workstations only. Thin client devices may require separate compliance handling."
+  query: SELECT 1 FROM system_info WHERE hardware_model NOT LIKE '%Thin Client%' AND hardware_model NOT LIKE '%ThinClient%';
+
+- name: ES-011 - Windows - Personal Device Compliance (MDM)
+  platform: windows
+  description: "Verifies the device is enrolled in MDM and managed. Required for personal device compliance."
+  resolution: "Enroll the device in MDM (Microsoft Intune or equivalent) and ensure it is fully managed."
+  query: SELECT 1 FROM mdm WHERE enrolled = 'true' AND managed = 'true';
+
+- name: ES-012 - Windows - Disk Encryption (BitLocker)
+  platform: windows
+  description: "Verifies BitLocker disk encryption is enabled and the C: drive is protected."
+  resolution: "Enable BitLocker on the C: drive. Use Group Policy or manual configuration to enable encryption."
+  query: SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
+
+- name: ES-013 - Forced Non-Compliance (Testing)
+  platform: windows
+  description: "Intentional failing policy for non-compliance testing. This policy always fails and is used to verify alerting and reporting workflows."
+  resolution: "This is a test policy. No remediation required. Remove or disable this policy in production."
+  query: SELECT 0;
+
+- name: ES-014 - Windows - Antivirus and Firewall
+  platform: windows
+  description: "Verifies Windows Defender (or compatible antivirus) and Windows Firewall are enabled and reporting good status."
+  resolution: "Enable Windows Defender Antivirus and Windows Firewall. Ensure real-time protection is active."
+  query: SELECT 1 FROM windows_security_center WHERE firewall = 'Good' AND antivirus = 'Good';
+
+- name: ES-015 - Windows - TPM Required
+  platform: windows
+  description: "Verifies the Trusted Platform Module (TPM) is activated, enabled, and owned. Required for BitLocker and secure boot."
+  resolution: "Enable TPM in BIOS/UEFI. Ensure TPM is activated and ownership has been taken."
+  query: SELECT 1 FROM tpm_info WHERE activated = 1 AND enabled = 1 AND owned = 1;
