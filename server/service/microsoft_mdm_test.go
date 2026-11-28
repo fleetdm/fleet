@@ -4203,6 +4203,16 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.Contains(t, (*events)[0], globalSecret)
 	})
 
+	t.Run("disabled: a global secret XML can't carry is not installed", func(t *testing.T) {
+		serveFleetdMetadata(t, http.StatusOK)
+		svc, ds, events := newService(t, false)
+		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+			return []*fleet.EnrollSecret{{Secret: "a\x01b"}}, nil
+		}
+		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+		require.Empty(t, *events)
+	})
+
 	t.Run("an install skipped for missing metadata leaves no secret behind", func(t *testing.T) {
 		// A minted secret nobody is delivered is still a live credential for the enrollment, so it must not be created ahead of
 		// an early return.
