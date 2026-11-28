@@ -55,8 +55,9 @@ const ActivityDataRetentionSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When enabled, allows automatic cleanup of audit logs older
-                  than the number of days specified.
+                  When enabled, allows automatic cleanup of activities older
+                  than the number of days specified, except those linked to an
+                  existing host.
                   <br />
                   <i>
                     (Default: <strong>Off</strong>)
