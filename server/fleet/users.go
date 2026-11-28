@@ -24,6 +24,14 @@ type UserSummary struct {
 	APIOnly     bool   `db:"api_only"`
 }
 
+// ExternalIdentity binds an identity asserted by an external JWT issuer to an
+// API-only user. Issuer is the configured issuer's name, not its URL, so that
+// changing an issuer's hostname does not orphan its bindings.
+type ExternalIdentity struct {
+	Issuer  string `json:"issuer" db:"issuer"`
+	Subject string `json:"subject" db:"subject"`
+}
+
 // APIEndpointRef represents an endpoint an API-only user has access to.
 type APIEndpointRef struct {
 	Method string `json:"method"`

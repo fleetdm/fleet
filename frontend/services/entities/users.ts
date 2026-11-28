@@ -2,6 +2,10 @@
 
 import { IApiEndpointRef } from "interfaces/api_endpoint";
 import { IUserSettings } from "interfaces/config";
+import {
+  IExternalIdentitiesResponse,
+  IExternalIdentity,
+} from "interfaces/external_identity";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { ITeamSummary, INewTeamUser } from "interfaces/team";
 import {
@@ -105,6 +109,26 @@ export default {
 
     return sendRequest("PATCH", path, formData).then(
       (response) => response.user
+    );
+  },
+  getApiOnlyUserExternalIdentities: (
+    userId: number
+  ): Promise<IExternalIdentitiesResponse> => {
+    const { USERS_API_ONLY } = endpoints;
+    return sendRequest(
+      "GET",
+      `${USERS_API_ONLY}/${userId}/external_identities`
+    );
+  },
+  updateApiOnlyUserExternalIdentities: (
+    userId: number,
+    externalIdentities: IExternalIdentity[]
+  ): Promise<IExternalIdentitiesResponse> => {
+    const { USERS_API_ONLY } = endpoints;
+    return sendRequest(
+      "PUT",
+      `${USERS_API_ONLY}/${userId}/external_identities`,
+      { external_identities: externalIdentities }
     );
   },
   getUserById: (userId: number): Promise<IUser> => {
