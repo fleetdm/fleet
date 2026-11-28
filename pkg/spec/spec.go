@@ -392,6 +392,8 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 		case strings.HasPrefix(strings.ToUpper(env), fleet.ServerVarPrefix):
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
+		case fleet.IsBarePrefix(s, env, fleet.ServerSecretPrefix, endPos):
+			return "", false
 		case strings.HasPrefix(env, fleet.ServerSecretPrefix):
 			switch secretMode {
 			case secretsExpand:
@@ -496,7 +498,7 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
-		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
+		if strings.HasPrefix(env, fleet.ServerSecretPrefix) && !fleet.IsBarePrefix(s, env, fleet.ServerSecretPrefix, endPos) {
 			// lookup the secret and save it, but don't replace
 			v, ok := lookupEnv(env)
 			if !ok {

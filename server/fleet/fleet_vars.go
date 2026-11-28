@@ -1,7 +1,7 @@
 package fleet
 
 import (
-	"os"
+	"iter"
 	"strings"
 )
 
@@ -11,18 +11,27 @@ const (
 
 // ContainsPrefixVars scans a string for variables in the form of $VAR
 // and ${VAR} that begin with prefix, and return an array of those
-// variables with the prefix removed.
+// variables with the prefix removed. A bare $FLEET_SECRET_ is skipped, see
+// IsBarePrefix.
 func ContainsPrefixVars(text, prefix string) []string {
 	vars := []string{}
-	gather := func(variable string) string {
-		if strings.HasPrefix(variable, prefix) {
-			vars = append(vars, strings.TrimPrefix(variable, prefix))
+	for name, end := range shellVars(text) {
+		if strings.HasPrefix(name, prefix) && !IsBarePrefix(text, name, prefix, end) {
+			vars = append(vars, strings.TrimPrefix(name, prefix))
 		}
-		return ""
 	}
-	os.Expand(text, gather)
-
 	return vars
+}
+
+// IsBarePrefix reports whether name, ending at byte end of text, is only the
+// $FLEET_SECRET_ prefix written as prose, such as "$FLEET_SECRET_ in CI". The
+// braced form, or another variable, a brace, markup, an escape or a quote right
+// after the prefix, keeps it a reference. Other prefixes are always references.
+func IsBarePrefix(text, name, prefix string, end int) bool {
+	if prefix != ServerSecretPrefix || name != prefix || text[end-1] == '}' {
+		return false
+	}
+	return end >= len(text) || !strings.ContainsRune(`${<>&\]"'`, rune(text[end]))
 }
 
 // ContainsVar returns true if text contains the given variableName in the form of
@@ -31,17 +40,29 @@ func ContainsVar(text, variableName string) bool {
 	if variableName == "" {
 		return false
 	}
-	// ${} is all ASCII, so bytes are fine for this operation.
-	for j := 0; j < len(text); j++ {
-		if text[j] == '$' && j+1 < len(text) {
-			name, w := getShellName(text[j+1:])
-			if name == variableName {
-				return true
-			}
-			j += w
+	for name := range shellVars(text) {
+		if name == variableName {
+			return true
 		}
 	}
 	return false
+}
+
+// shellVars yields each $VAR and ${VAR} name in text and the byte where it
+// ends, scanning like os.Expand, which doesn't report positions.
+func shellVars(text string) iter.Seq2[string, int] {
+	return func(yield func(string, int) bool) {
+		// ${} is all ASCII, so bytes are fine for this operation.
+		for j := 0; j < len(text); j++ {
+			if text[j] == '$' && j+1 < len(text) {
+				name, w := getShellName(text[j+1:])
+				if !yield(name, j+1+w) {
+					return
+				}
+				j += w
+			}
+		}
+	}
 }
 
 // MaybeExpand conditionally replaces ${var} or $var in the string based on the mapping function.

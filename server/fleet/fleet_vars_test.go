@@ -16,11 +16,22 @@ echo words${FLEET_SECRET_BAR}words
 $FLEET_SECRET_BAZ
 ${FLEET_SECRET_QUX}
 `
-	secrets := ContainsPrefixVars(script, ServerSecretPrefix)
-	require.Contains(t, secrets, "FOO")
-	require.Contains(t, secrets, "BAR")
-	require.Contains(t, secrets, "BAZ")
-	require.Contains(t, secrets, "QUX")
+	for _, tc := range []struct {
+		text   string
+		prefix string
+		want   []string
+	}{
+		{script, ServerSecretPrefix, []string{"FOO", "BAR", "BAZ", "QUX"}},
+		{"<!-- Delivered via $FLEET_SECRET_ (kept out of git). -->\n<Data>$FLEET_SECRET_FOO</Data>", ServerSecretPrefix, []string{"FOO"}},
+		{"# $FLEET_SECRET_. and $FLEET_SECRET_", ServerSecretPrefix, []string{}},
+		// Not a bare prefix: braced, or something follows it.
+		{"$FLEET_SECRET_$X $FLEET_SECRET_${X} $FLEET_SECRET_{X} $FLEET_SECRET_<b> $FLEET_SECRET_>b $FLEET_SECRET_&amp; $FLEET_SECRET_\\n [$FLEET_SECRET_] \"$FLEET_SECRET_\" '$FLEET_SECRET_' ${FLEET_SECRET_}", ServerSecretPrefix, []string{"", "", "", "", "", "", "", "", "", "", ""}},
+		// Only $FLEET_SECRET_ can be bare.
+		{"$FLEET_HOST_SECRET_ and $FLEET_HOST_SECRET_RECOVERY_LOCK_PASSWORD", HostSecretPrefix, []string{"", "RECOVERY_LOCK_PASSWORD"}},
+		{"$FLEET_HOST_VITAL_ and ${FLEET_HOST_VITAL_12}", CustomHostVitalPrefix, []string{"", "12"}},
+	} {
+		require.Equal(t, tc.want, ContainsPrefixVars(tc.text, tc.prefix), tc.text)
+	}
 }
 
 func TestMaybeExpand(t *testing.T) {

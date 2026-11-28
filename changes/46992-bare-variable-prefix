@@ -1,0 +1,1 @@
+- Fixed GitOps runs and script and configuration profile uploads failing when text, such as a comment, mentions `$FLEET_SECRET_` followed by a space or the end of a line, for example `# Set $FLEET_SECRET_ in CI`.
