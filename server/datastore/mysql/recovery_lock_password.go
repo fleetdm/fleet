@@ -525,11 +525,11 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context, clearCo
 
 func (ds *Datastore) ClaimHostsForRecoveryLockVerify(ctx context.Context) ([]fleet.HostRecoveryLockVerifyClaim, error) {
 	// Every result handler that moves a row to verifying also records its verify command, so
-	// only the upgrade repair (migration 20261029055700) leaves one without. Unlike the set and
-	// clear claims there are no enrollment checks: these rows already passed them, and the cron
-	// soft-deletes rows of unenrolled hosts before this runs.
+	// only the upgrade repair (migration 20261029055700) and ResetRecoveryLockForInactiveCommands
+	// leave one without. Unlike the set and clear claims there are no enrollment checks: these
+	// rows already passed them, and the cron soft-deletes rows of unenrolled hosts before this runs.
 	selectStmt := fmt.Sprintf(`
-		SELECT host_uuid, operation_type
+		SELECT host_uuid, operation_type, pending_encrypted_password IS NOT NULL AS has_pending_password
 		FROM host_recovery_key_passwords
 		WHERE deleted = 0
 		  AND status = '%s'
@@ -621,6 +621,60 @@ func (ds *Datastore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx conte
 		return 0, ctxerr.Wrap(ctx, err, "soft-delete recovery lock passwords for unenrolled hosts")
 	}
 	return res.RowsAffected()
+}
+
+// ResetRecoveryLockForInactiveCommands returns rows whose pending command went inactive in
+// the nano queue to the state the set, clear and verify claims retry. The queue row must
+// exist with active = 0, so a row whose command is not enqueued yet is never reset.
+// STRAIGHT_JOIN keeps MySQL from driving the join from every inactive queue row.
+func (ds *Datastore) ResetRecoveryLockForInactiveCommands(ctx context.Context) (int64, error) {
+	resetSetStmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords rkp
+		STRAIGHT_JOIN nano_enrollment_queue neq
+			ON neq.id = rkp.host_uuid AND neq.command_uuid = rkp.pending_set_command_uuid
+		SET rkp.status = NULL,
+		    rkp.pending_set_command_uuid = NULL
+		WHERE rkp.deleted = 0
+		  AND rkp.status = '%s'
+		  AND neq.active = 0`, fleet.MDMDeliveryPending)
+
+	resetVerifyStmt := fmt.Sprintf(`
+		UPDATE host_recovery_key_passwords rkp
+		STRAIGHT_JOIN nano_enrollment_queue neq
+			ON neq.id = rkp.host_uuid AND neq.command_uuid = rkp.pending_verify_command_uuid
+		SET rkp.pending_verify_command_uuid = NULL
+		WHERE rkp.deleted = 0
+		  AND rkp.status = '%s'
+		  AND neq.active = 0`, fleet.MDMDeliveryVerifying)
+
+	var total int64
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		total = 0
+		res, err := tx.ExecContext(ctx, resetSetStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reset recovery lock rows with inactive set command")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected resetting inactive set command")
+		}
+		total += n
+
+		res, err = tx.ExecContext(ctx, resetVerifyStmt)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "reset recovery lock rows with inactive verify command")
+		}
+		n, err = res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected resetting inactive verify command")
+		}
+		total += n
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 func (ds *Datastore) InitiateRecoveryLockRotation(ctx context.Context, hostUUID, setCommandUUID string, newPassword string) error {

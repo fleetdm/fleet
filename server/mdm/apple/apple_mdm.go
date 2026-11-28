@@ -20,6 +20,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -2054,6 +2055,7 @@ type RecoveryLockCommander interface {
 	ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	VerifyRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
+	VerifyRecoveryLockLastKnownPassword(ctx context.Context, hostUUID, cmdUUID string) error
 	VerifyClearRecoveryLock(ctx context.Context, hostUUID, cmdUUID string) error
 }
 
@@ -2062,7 +2064,8 @@ type RecoveryLockCommander interface {
 //
 // Note: SetRecoveryLock command results are handled in the MDM results handler
 // (server/service/apple_mdm.go), which sends VerifyRecoveryLock immediately upon acknowledgment.
-// sendRecoveryLockVerifyCommands covers acknowledgments that handler never matched.
+// sendRecoveryLockVerifyCommands covers acknowledgments that handler never matched, and
+// verify commands dropped from the queue.
 func SendRecoveryLockCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -2102,6 +2105,14 @@ func sendRecoveryLockCommandsWithCommander(
 		logger.InfoContext(ctx, "soft-deleted recovery lock passwords for unenrolled hosts", "count", swept)
 	}
 
+	// Runs before the claims below so a command dropped from the queue is resent this tick.
+	reset, err := ds.ResetRecoveryLockForInactiveCommands(ctx)
+	if err != nil {
+		result = multierror.Append(result, ctxerr.Wrap(ctx, err, "reset recovery lock for inactive commands"))
+	} else if reset > 0 {
+		logger.InfoContext(ctx, "reset recovery lock for inactive commands", "count", reset)
+	}
+
 	if err := sendRecoveryLockVerifyCommands(ctx, ds, commander, logger); err != nil {
 		result = multierror.Append(result, err)
 	}
@@ -2124,9 +2135,9 @@ func sendRecoveryLockCommandsWithCommander(
 	return result.ErrorOrNil()
 }
 
-// sendRecoveryLockVerifyCommands sends the verify step for hosts whose SetRecoveryLock was
-// acknowledged without the result handler sending it, which the upgrade repair in migration
-// 20261029055700 leaves behind.
+// sendRecoveryLockVerifyCommands sends the verify step for hosts in verifying with no verify
+// queued: the upgrade repair in migration 20261029055700 leaves those behind, and
+// ResetRecoveryLockForInactiveCommands clears a verify that was dropped.
 func sendRecoveryLockVerifyCommands(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -2141,12 +2152,17 @@ func sendRecoveryLockVerifyCommands(
 	var result *multierror.Error
 	for _, c := range claims {
 		send := commander.VerifyRecoveryLock
-		if c.OperationType == fleet.MDMOperationTypeRemove {
+		switch {
+		case c.OperationType == fleet.MDMOperationTypeRemove:
 			send = commander.VerifyClearRecoveryLock
+		case !c.HasPendingPassword:
+			// The device rejected the pending password, so
+			// SetRecoveryLockVerifyingLastKnownPassword cleared it.
+			send = commander.VerifyRecoveryLockLastKnownPassword
 		}
 		err := send(ctx, c.HostUUID, c.VerifyCommandUUID)
 		if err == nil {
-			logger.InfoContext(ctx, "sent VerifyRecoveryLock for acknowledged SetRecoveryLock",
+			logger.InfoContext(ctx, "sent VerifyRecoveryLock for a host with no verify queued",
 				"host_uuid", c.HostUUID, "command_uuid", c.VerifyCommandUUID)
 			continue
 		}
@@ -2171,7 +2187,9 @@ func sendSetRecoveryLockCommands(
 	commander RecoveryLockCommander,
 	logger *slog.Logger,
 ) error {
-	hosts, err := ds.GetHostsForRecoveryLockAction(ctx)
+	// From the primary: a lagging replica would hide rows ResetRecoveryLockForInactiveCommands
+	// just reset, and could still show rows an earlier run already claimed.
+	hosts, err := ds.GetHostsForRecoveryLockAction(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get hosts for recovery lock action")
 	}

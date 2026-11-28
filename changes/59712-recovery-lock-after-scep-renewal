@@ -1,0 +1,1 @@
+- Fixed Macs whose Recovery Lock stayed Pending forever after an MDM SCEP renewal dropped a queued Recovery Lock command. Fleet now retries the command, including for Macs already stuck on an earlier version.

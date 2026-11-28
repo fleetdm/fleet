@@ -20,12 +20,15 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	micromdm "github.com/micromdm/micromdm/mdm/mdm"
+	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -398,6 +401,36 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
 		require.NoError(t, err)
 		return setCmd
+	}
+
+	// renewSCEP queues a SCEP renewal for the host and has the device install it while it keeps
+	// deferring everything else, as a Mac that wakes with commands queued does. The renewal's
+	// Authenticate clears the device's command queue.
+	renewSCEP := func(t *testing.T, host *fleet.Host, mdmClient *mdmtest.TestAppleMDMClient) {
+		t.Helper()
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `UPDATE nano_cert_auth_associations
+				SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR) WHERE id = ?`, host.UUID)
+			return err
+		})
+		apnsCert, apnsKey, err := generateCertWithAPNsTopic()
+		require.NoError(t, err)
+		fleetCfg := config.TestConfig()
+		config.SetTestMDMConfig(t, &fleetCfg, apnsCert, apnsKey, "")
+		require.NoError(t, RenewSCEPCertificates(t.Context(), slog.New(slog.DiscardHandler), s.ds, &fleetCfg, s.mdmCommander, s.acmeSvc))
+
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		for cmd != nil && cmd.Command.RequestType != "InstallProfile" {
+			cmd, err = mdmClient.NotNow(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.NotNil(t, cmd, "expected the SCEP renewal InstallProfile command")
+		var renewal micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &renewal))
+		cmd, err = mdmClient.Renew(cmd.CommandUUID, renewal.Command.InstallProfile.Payload)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
 	}
 
 	// Helper to get host details and return recovery lock password status
@@ -1192,6 +1225,82 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		}, http.StatusOK, &appConfigResponse{})
 	})
 
+	t.Run("rotation deferred across a SCEP renewal is sent again", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
+		}, http.StatusOK, &appConfigResponse{})
+		t.Cleanup(func() {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+				"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+			}, http.StatusOK, &appConfigResponse{})
+		})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		runRecoveryLockCron(t)
+		ackSetThenVerify(t, mdmClient)
+
+		var getPasswordResp getHostRecoveryLockPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		originalPassword := *getPasswordResp.RecoveryLockPassword.Password
+
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+
+		// The Mac is asleep, so it defers the rotation.
+		cmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "SetRecoveryLock", cmd.Command.RequestType)
+		deferredCmdUUID := cmd.CommandUUID
+		cmd, err = mdmClient.NotNow(deferredCmdUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+
+		// On wake the Mac defers the rotation again and installs a SCEP renewal, whose
+		// Authenticate clears the command queue.
+		renewSCEP(t, host, mdmClient)
+
+		runRecoveryLockCron(t)
+
+		setCmd, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, setCmd, "the cron must send the rotation the renewal dropped")
+		require.Equal(t, "SetRecoveryLock", setCmd.Command.RequestType)
+		require.NotEqual(t, deferredCmdUUID, setCmd.CommandUUID)
+		// The resent command rotates from the password the Mac still holds.
+		var setPayload struct {
+			Command struct{ CurrentPassword, NewPassword string }
+		}
+		require.NoError(t, plist.Unmarshal(setCmd.Raw, &setPayload))
+		assert.Equal(t, originalPassword, setPayload.Command.CurrentPassword)
+		require.NotEmpty(t, setPayload.Command.NewPassword)
+		verifyCmd, err := mdmClient.Acknowledge(setCmd.CommandUUID)
+		require.NoError(t, err)
+		if verifyCmd == nil {
+			verifyCmd, err = mdmClient.Idle()
+			require.NoError(t, err)
+		}
+		require.NotNil(t, verifyCmd)
+		require.Equal(t, "VerifyRecoveryLock", verifyCmd.Command.RequestType)
+		var verifyPayload struct {
+			Command struct{ Password string }
+		}
+		require.NoError(t, plist.Unmarshal(verifyCmd.Raw, &verifyPayload))
+		assert.Equal(t, setPayload.Command.NewPassword, verifyPayload.Command.Password)
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(verifyCmd.CommandUUID, true)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password", host.ID), nil, http.StatusOK, &getPasswordResp)
+		require.NotNil(t, getPasswordResp.RecoveryLockPassword.Password)
+		assert.Equal(t, setPayload.Command.NewPassword, *getPasswordResp.RecoveryLockPassword.Password)
+
+		// The host can be rotated again.
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/recovery_lock_password/rotate", host.ID), nil, http.StatusOK, &rotateRecoveryLockPasswordResponse{})
+	})
+
 	// =========================================================================
 	// Test: the case the archive exists for. The device acknowledged the set, so it is
 	// holding the new password, but Fleet never got a verify through — the row ends up
@@ -1380,6 +1489,39 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
 			"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
 		}, http.StatusOK, &appConfigResponse{})
+	})
+
+	t.Run("last known password verify dropped by a SCEP renewal is sent again", func(t *testing.T) {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+			"mdm": map[string]any{"macos_recovery_lock_password_enabled": true},
+		}, http.StatusOK, &appConfigResponse{})
+		t.Cleanup(func() {
+			s.DoJSON("PATCH", "/api/latest/fleet/config", map[string]any{
+				"mdm": map[string]any{"macos_recovery_lock_password_enabled": false},
+			}, http.StatusOK, &appConfigResponse{})
+		})
+
+		host, mdmClient := createAppleSiliconHost(t)
+		knownPassword, verifyCmd := mismatchAfterReenroll(t, host, mdmClient)
+
+		// The Mac defers the verify, and a SCEP renewal's Authenticate drops it.
+		cmd, err := mdmClient.NotNow(verifyCmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+		renewSCEP(t, host, mdmClient)
+
+		runRecoveryLockCron(t)
+		resent, err := mdmClient.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, resent, "the cron must send the verify the renewal dropped")
+		require.Equal(t, "VerifyRecoveryLock", resent.Command.RequestType)
+		assert.Contains(t, string(resent.Raw), knownPassword, "the resent verify must carry the last known password")
+		_, err = mdmClient.AcknowledgeVerifyRecoveryLock(resent.CommandUUID, true)
+		require.NoError(t, err)
+
+		rlpStatus := getHostRecoveryLockStatus(host.ID)
+		require.NotNil(t, rlpStatus.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *rlpStatus.Status, rlpStatus.Detail)
 	})
 
 	t.Run("password mismatch after re-enrollment fails when the last known password does not verify", func(t *testing.T) {

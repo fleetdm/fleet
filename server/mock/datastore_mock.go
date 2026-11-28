@@ -1288,6 +1288,8 @@ type GetHostsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostAutoRota
 
 type SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc func(ctx context.Context) (int64, error)
 
+type ResetRecoveryLockForInactiveCommandsFunc func(ctx context.Context) (int64, error)
+
 type BulkUpsertHostDeviceNameEnforcementFunc func(ctx context.Context, teamID *uint) error
 
 type DeleteHostDeviceNameEnforcementForTeamFunc func(ctx context.Context, teamID *uint) error
@@ -4558,6 +4560,9 @@ type DataStore struct {
 
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc        SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc
 	SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked bool
+
+	ResetRecoveryLockForInactiveCommandsFunc        ResetRecoveryLockForInactiveCommandsFunc
+	ResetRecoveryLockForInactiveCommandsFuncInvoked bool
 
 	BulkUpsertHostDeviceNameEnforcementFunc        BulkUpsertHostDeviceNameEnforcementFunc
 	BulkUpsertHostDeviceNameEnforcementFuncInvoked bool
@@ -11045,6 +11050,13 @@ func (s *DataStore) SoftDeleteRecoveryLockPasswordsForUnenrolledHosts(ctx contex
 	s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc(ctx)
+}
+
+func (s *DataStore) ResetRecoveryLockForInactiveCommands(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.ResetRecoveryLockForInactiveCommandsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ResetRecoveryLockForInactiveCommandsFunc(ctx)
 }
 
 func (s *DataStore) BulkUpsertHostDeviceNameEnforcement(ctx context.Context, teamID *uint) error {

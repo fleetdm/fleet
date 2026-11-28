@@ -1867,9 +1867,10 @@ type HostRecoveryLockPending struct {
 
 // HostRecoveryLockVerifyClaim is a host claimed to have its recovery lock verify sent.
 type HostRecoveryLockVerifyClaim struct {
-	HostUUID          string           `db:"host_uuid"`
-	OperationType     MDMOperationType `db:"operation_type"`
-	VerifyCommandUUID string           `db:"-"`
+	HostUUID           string           `db:"host_uuid"`
+	OperationType      MDMOperationType `db:"operation_type"`
+	HasPendingPassword bool             `db:"has_pending_password"`
+	VerifyCommandUUID  string           `db:"-"`
 }
 
 // HostRecoveryLockRotationStatus represents the current rotation state for a host's recovery lock.
