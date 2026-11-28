@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.40.18",
+      "version": "0.40.19",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama' AND version_compare(bundle_short_version, '0.40.18') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.ollama' AND version_compare(bundle_short_version, '0.40.19') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.electron.ollama' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/ollama/ollama/releases/download/v0.40.18/Ollama-darwin.zip",
+      "installer_url": "https://github.com/ollama/ollama/releases/download/v0.40.19/Ollama-darwin.zip",
       "install_script_ref": "e891a072",
       "uninstall_script_ref": "d3f3174e",
-      "sha256": "1d990f4a8a76985c9defaa9a6ddd007556d117fd8ed586d7e9cbf25a6e9a4a23",
+      "sha256": "86ece905ada3d389e182426a77ac7dc4311c654ce578810be1a7fdfa9b9a3ef0",
       "default_categories": [
         "Developer tools"
       ]
