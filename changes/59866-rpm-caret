@@ -1,0 +1,1 @@
+Fixed RPM snapshot version ordering in vulnerability processing so caret snapshots sort between the base version and its next point release.

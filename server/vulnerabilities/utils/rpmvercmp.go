@@ -58,9 +58,18 @@ func (s segment) compare(b segment) int {
 		return -1
 	}
 	if b.letters == "~" {
-		if s.letters == "~" {
+		return 1
+	}
+
+	// A caret follows the base version (handled by the exhaustion check in
+	// rpmCmp), but precedes the next alphabetic or numeric segment.
+	if s.letters == "^" {
+		if b.letters == "^" {
 			return 0
 		}
+		return -1
+	}
+	if b.letters == "^" {
 		return 1
 	}
 
@@ -97,7 +106,7 @@ func nextSeg(ver string) segment {
 	start := 0
 	for start < len(ver) {
 		r, size := utf8.DecodeRuneInString(ver[start:])
-		if unicode.IsNumber(r) || unicode.IsLetter(r) || r == '~' {
+		if unicode.IsNumber(r) || unicode.IsLetter(r) || r == '~' || r == '^' {
 			break
 		}
 		start += size
@@ -107,8 +116,8 @@ func nextSeg(ver string) segment {
 		return segment{offset: start, exhausted: true}
 	}
 
-	if ver[start] == '~' {
-		return segment{letters: "~", offset: start + 1}
+	if ver[start] == '~' || ver[start] == '^' {
+		return segment{letters: ver[start : start+1], offset: start + 1}
 	}
 
 	firstRune, _ := utf8.DecodeRuneInString(ver[start:])

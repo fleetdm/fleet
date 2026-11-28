@@ -67,6 +67,13 @@ func TestRpmvercmp(t *testing.T) {
 		expected int
 		b        string
 	}{
+		{"1.0^20230101-1.el9", LESS, "1.0.1-1.el9"},
+		{"1.0.1", GREATER, "1.0^20230101"},
+		{"1.0", LESS, "1.0^"},
+		{"1.0^", LESS, "1.0a"},
+		{"1.0~rc", LESS, "1.0^git"},
+		{"1.0^git1", LESS, "1.0^git2"},
+		{"1.0-1^git", LESS, "1.0-1.1"},
 		{"!", LESS, "0"},
 		{"0", GREATER, "!"},
 		{"1.0__", LESS, "1.0A"},
