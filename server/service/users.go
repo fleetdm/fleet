@@ -162,18 +162,24 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "fetching teams in attempt to verify team exists")
 		}
-		teamIDs := map[uint]struct{}{}
+		teamNames := map[uint]string{}
 		for _, team := range teamsSummary {
-			teamIDs[team.ID] = struct{}{}
+			teamNames[team.ID] = team.Name
 		}
-		for _, userTeam := range teams {
-			_, ok := teamIDs[userTeam.Team.ID]
+		// Work on a copy so the caller's payload is not mutated, and fill in
+		// the fleet names so the role-change activities carry them.
+		namedTeams := make([]fleet.UserTeam, len(teams))
+		for i, userTeam := range teams {
+			name, ok := teamNames[userTeam.Team.ID]
 			if !ok {
 				return nil, nil, ctxerr.Wrap(
 					ctx, fleet.NewInvalidArgumentError("fleets.id", fmt.Sprintf("fleet with id %d does not exist", userTeam.Team.ID)),
 				)
 			}
+			userTeam.Team.Name = name
+			namedTeams[i] = userTeam
 		}
+		p.Teams = &namedTeams
 	}
 
 	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {
