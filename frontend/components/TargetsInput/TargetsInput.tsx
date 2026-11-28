@@ -1,4 +1,4 @@
-import { isEmpty, pullAllBy } from "lodash";
+import { differenceBy, isEmpty } from "lodash";
 import React, { useRef, useEffect, useState } from "react";
 import { Row } from "react-table";
 
@@ -51,7 +51,7 @@ const TargetsInput = ({
 }: ITargetsInputProps): JSX.Element => {
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const dropdownHosts =
-    searchResults && pullAllBy(searchResults, targetedHosts, "id");
+    searchResults && differenceBy(searchResults, targetedHosts, "id");
 
   const [isActiveSearch, setIsActiveSearch] = useState(false);
 
@@ -100,6 +100,12 @@ const TargetsInput = ({
             className={`${baseClass}__hosts-search-dropdown`}
             ref={dropdownRef}
           >
+            {!isTargetsLoading && dropdownHosts?.length === 10 && (
+              <p className={`${baseClass}__search-limit`}>
+                Showing up to 10 matching hosts. Refine your search to narrow
+                the results.
+              </p>
+            )}
             <TableContainer<Row<IHost>>
               columnConfigs={searchResultsTableConfig}
               data={dropdownHosts}

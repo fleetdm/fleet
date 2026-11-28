@@ -95,6 +95,33 @@ describe("TargetsInput", () => {
     expect(screen.queryByText("testName")).not.toBeInTheDocument();
   });
 
+  it.each([9, 10])(
+    "shows the search limit hint at capacity (%i hosts)",
+    (count) => {
+      const hosts = Array.from({ length: count }, (_, i) =>
+        createMockHost({ id: i + 1, display_name: `Host ${i + 1}` })
+      );
+      render(
+        <TargetsInput
+          searchText="Host"
+          searchResults={hosts}
+          isTargetsLoading={false}
+          hasFetchError={false}
+          targetedHosts={[]}
+          searchResultsTableConfig={[
+            { Header: "Name", accessor: "display_name" },
+          ]}
+          selectedHostsTableConifg={[]}
+          setSearchText={noop}
+          handleRowSelect={noop}
+        />
+      );
+      expect(
+        Boolean(screen.queryByText(/Showing up to 10 matching hosts/))
+      ).toBe(count === 10);
+    }
+  );
+
   it("sorts the OS column by the name and version it shows", async () => {
     const testHosts: IHost[] = [
       createMockHost({ id: 1, os_name: "Ubuntu", os_version: "22.04" }),

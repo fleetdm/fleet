@@ -1,6 +1,10 @@
 .targets-input {
   position: relative;
 
+  &__search-limit {
+    margin: $pad-small $pad-medium;
+  }
+
   &__hosts-search-dropdown {
     width: 100%;
     position: absolute;

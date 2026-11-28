@@ -2884,7 +2884,15 @@ func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.SearchHosts(context.Background(), filter, "foo", false)
 	require.NoError(t, err)
-	assert.Len(t, hosts, 10)
+	require.Len(t, hosts, 10)
+
+	omit := []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}
+	hosts, err = ds.SearchHosts(context.Background(), filter, "foo", false, omit...)
+	require.NoError(t, err)
+	require.Len(t, hosts, 10)
+	for i, h := range hosts {
+		require.Equal(t, fmt.Sprintf("foo.%d.local", 11-i), h.Hostname)
+	}
 }
 
 func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
