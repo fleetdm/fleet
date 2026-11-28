@@ -663,8 +663,8 @@ reports:
 	t.Setenv("FLEET_URL", s.Server.URL)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
@@ -741,8 +741,8 @@ reports:
 	require.NoError(t, err)
 
 	// Apply configs
-	s.assertDryRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}))
-	s.assertRealRunOutput(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}))
+	s.assertDryRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"}), true)
+	s.assertRealRunOutputWithDeprecation(t, fleetctltest.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()}), true)
 
 	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)

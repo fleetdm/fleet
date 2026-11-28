@@ -1,0 +1,1 @@
+* Added a warning to `fleetctl gitops` that identifies configuration profiles using the deprecated `$FLEET_VAR_SCEP_RENEWAL_ID` variable and suggests its replacement.

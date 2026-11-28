@@ -1502,7 +1502,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		// Then resolve the paths to absolute and find Fleet secrets in the profile files.
 		for i := range macOSSettings.CustomSettings {
 
-			err := resolveAndUpdateProfilePath(&macOSSettings.CustomSettings[i], result)
+			err := resolveAndUpdateProfilePath(&macOSSettings.CustomSettings[i], result, logFn)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -1522,7 +1522,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 		})
 		multiError = multierror.Append(multiError, errs...)
 		for i := range macOSSettings.Assets {
-			err := resolveAndUpdateProfilePath(&macOSSettings.Assets[i], result)
+			err := resolveAndUpdateProfilePath(&macOSSettings.Assets[i], result, logFn)
 			if err != nil {
 				return multierror.Append(multiError, err)
 			}
@@ -1547,7 +1547,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			multiError = multierror.Append(multiError, errs...)
 
 			for i := range windowsSettings.CustomSettings.Value {
-				err := resolveAndUpdateProfilePath(&windowsSettings.CustomSettings.Value[i], result)
+				err := resolveAndUpdateProfilePath(&windowsSettings.CustomSettings.Value[i], result, logFn)
 				if err != nil {
 					return multierror.Append(multiError, err)
 				}
@@ -1581,7 +1581,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			androidSettings.CustomSettings.Value, errs = expandBaseItems(androidSettings.CustomSettings.Value, controlsDir, "profile", androidGlobOpts)
 			multiError = multierror.Append(multiError, errs...)
 			for i := range androidSettings.CustomSettings.Value {
-				err := resolveAndUpdateProfilePath(&androidSettings.CustomSettings.Value[i], result)
+				err := resolveAndUpdateProfilePath(&androidSettings.CustomSettings.Value[i], result, logFn)
 				if err != nil {
 					return multierror.Append(multiError, err)
 				}
@@ -1797,7 +1797,7 @@ func validateProfileSpecNames(specs []fleet.MDMProfileSpec, baseDir, settingsKey
 	return errs
 }
 
-func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) error {
+func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps, logFn Logf) error {
 	// Path has already been resolved by expandBaseItems; just ensure it's absolute.
 	var err error
 	profile.Path, err = filepath.Abs(profile.Path)
@@ -1808,11 +1808,12 @@ func resolveAndUpdateProfilePath(profile *fleet.MDMProfileSpec, result *GitOps) 
 	if err != nil {
 		return fmt.Errorf("failed to read profile file %s: %v", profile.Path, err)
 	}
-	err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
-	if err != nil {
-		return err
+	contents := string(fileBytes)
+	if logFn != nil && fleet.ContainsVar(contents, fleet.ServerVarPrefix+string(fleet.FleetVarSCEPRenewalID)) {
+		logFn("[!] %s: %s is deprecated. Replace it with %s before upgrading to Fleet 6.\n",
+			profile.Path, fleet.FleetVarSCEPRenewalID.WithPrefix(), fleet.FleetVarCertificateRenewalID.WithPrefix())
 	}
-	return nil
+	return LookupEnvSecrets(contents, result.FleetSecrets)
 }
 
 func resolveAndReturnFileBytes(path string) ([]byte, error) {

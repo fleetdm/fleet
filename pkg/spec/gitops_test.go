@@ -7324,3 +7324,36 @@ func TestGitOpsPatchDeadlineSettings(t *testing.T) {
 		require.ErrorContains(t, err, "'software' cannot be set on global file")
 	})
 }
+
+func TestProfileRenewalVariableDeprecation(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		content     string
+		wantWarning bool
+	}{
+		{"legacy", "$FLEET_VAR_SCEP_RENEWAL_ID", true},
+		{"braced", "${FLEET_VAR_SCEP_RENEWAL_ID}", true},
+		{"repeated", "$FLEET_VAR_SCEP_RENEWAL_ID ${FLEET_VAR_SCEP_RENEWAL_ID}", true},
+		{"replacement", "$FLEET_VAR_CERTIFICATE_RENEWAL_ID", false},
+		{"different variable", "$FLEET_VAR_SCEP_RENEWAL_ID_SUFFIX", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "wifi.mobileconfig")
+			require.NoError(t, os.WriteFile(path, []byte(tc.content), 0600))
+			var warnings []string
+			logFn := func(format string, args ...any) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
+			}
+			err := resolveAndUpdateProfilePath(&fleet.MDMProfileSpec{Path: path}, &GitOps{FleetSecrets: map[string]string{}}, logFn)
+			require.NoError(t, err)
+			if tc.wantWarning {
+				require.Len(t, warnings, 1)
+				assert.Contains(t, warnings[0], path)
+				assert.Contains(t, warnings[0], "is deprecated")
+				assert.Contains(t, warnings[0], "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+			} else {
+				assert.Empty(t, warnings)
+			}
+		})
+	}
+}
