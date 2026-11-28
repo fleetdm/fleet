@@ -57,6 +57,21 @@ func printAuthError(w io.Writer, client *service.Client, prefix string) {
 	fmt.Fprintf(w, "%s Please log in with: fleetctl login\n", prefix)
 }
 
+const apiTokenEnvVar = "FLEET_API_TOKEN" //nolint:gosec // G101 false positive, an env var name
+
+func getToken(configPath, context string) (any, error) {
+	if token := os.Getenv(apiTokenEnvVar); token != "" {
+		return token, nil
+	}
+	return getConfigValue(configPath, context, "token")
+}
+
+func warnIfTokenEnvVarOverrides(w io.Writer, savedToken string) {
+	if envToken := os.Getenv(apiTokenEnvVar); envToken != "" && envToken != savedToken {
+		fmt.Fprintf(w, "[!] %s is set and will be used instead of the token saved in the config.\n", apiTokenEnvVar)
+	}
+}
+
 func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	fleetClient, err := unauthenticatedClientFromCLI(c)
 	if err != nil {
@@ -72,7 +87,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	}
 
 	// Add authentication token
-	t, err := getConfigValue(configPath, context, "token")
+	t, err := getToken(configPath, context)
 	if err != nil {
 		return nil, fmt.Errorf("error getting token from the config: %w", err)
 	}
@@ -84,7 +99,7 @@ func clientFromCLI(c *cli.Context) (*service.Client, error) {
 	}
 	if token == "" {
 		printAuthError(os.Stderr, fleetClient, "Token missing.")
-		return nil, errors.New("token config value missing")
+		return nil, fmt.Errorf("token missing: set the %s environment variable or the token config value", apiTokenEnvVar)
 	}
 	fleetClient.SetToken(token)
 
