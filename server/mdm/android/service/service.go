@@ -1470,12 +1470,18 @@ func (svc *Service) IssueCustomCommand(ctx context.Context, hostID uint, rawJSON
 }
 
 func (svc *Service) EnterprisesApplications(ctx context.Context, enterpriseName, applicationID string) (*androidmanagement.Application, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	return svc.androidAPIClient.EnterprisesApplications(ctx, enterpriseName, applicationID)
 }
 
 // Adds the specified apps to the host-specific Android policy of the provided hosts, and
 // returns a map of host UUID to the policy request object of their updated policy on success.
 func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	var errs []error
 	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
@@ -1500,6 +1506,9 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 }
 
 func (svc *Service) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	var errs []error
 	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
@@ -1560,6 +1569,16 @@ func buildFleetAgentAppPolicy(packageName, sha256Fingerprint string, managedConf
 // hostConfigs maps host UUIDs to managed configurations for the Fleet Agent.
 // The UUID is BOTH the hostUUID and the policyID. We assume that the host UUID is the same as the policy ID.
 func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
+	hostConfigs map[string]android.AgentManagedConfiguration,
+) error {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return err
+	}
+	return svc.addFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs)
+}
+
+// addFleetAgentToAndroidPolicy is AddFleetAgentToAndroidPolicy for callers that already set the client's secret.
+func (svc *Service) addFleetAgentToAndroidPolicy(ctx context.Context, enterpriseName string,
 	hostConfigs map[string]android.AgentManagedConfiguration,
 ) error {
 	packageName, sha256Fingerprint := svc.getFleetAgentPackageInfo()
@@ -1738,6 +1757,9 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 }
 
 func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return false, err
+	}
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
@@ -1770,6 +1792,9 @@ func (svc *Service) PatchDevice(ctx context.Context, policyID, deviceName string
 func (svc *Service) PatchPolicy(ctx context.Context, policyID, policyName string,
 	policy *androidmanagement.Policy, metadata map[string]string,
 ) (skip bool, err error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return false, err
+	}
 	skip, _, err = svc.patchPolicy(ctx, policyID, policyName, policy, metadata)
 	return skip, err
 }
@@ -1906,6 +1931,9 @@ func (svc *Service) buildAndSendFleetAgentConfig(
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return err
+	}
 
 	appConfig, err := svc.fleetDS.AppConfig(ctx)
 	if err != nil {
@@ -1987,7 +2015,7 @@ func (svc *Service) buildAndSendFleetAgentConfig(
 				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
 			}
 			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
-			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+			if err := svc.addFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 				svc.logger.ErrorContext(ctx, "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
 				if failOnSendError {
 					return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
@@ -2009,7 +2037,7 @@ func (svc *Service) buildAndSendFleetAgentConfig(
 		}
 
 		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
-		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
+		if err := svc.addFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 			// AMAPI call failed, revert to pending for retry later
 			svc.logger.ErrorContext(ctx, "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
 			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
@@ -2036,6 +2064,9 @@ func (svc *Service) buildAndSendFleetAgentConfig(
 // Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 // not additive/PATCH semantics.
 func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	var errs []error
 	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
@@ -2061,6 +2092,9 @@ func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName 
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	if err := svc.setAMAPIClientSecret(ctx); err != nil {
+		return nil, err
+	}
 	app, err := svc.androidAPIClient.EnterprisesWebAppsCreate(ctx, enterpriseName, app)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating Android web app")
