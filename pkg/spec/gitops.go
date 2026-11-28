@@ -3113,7 +3113,11 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, fmt.Errorf(fleet.SoftwareLabelsPackageLevelOnlyMessage, *teamLevelPackage.Path))
 				}
 				var valid []*fleet.SoftwarePackageSpec
-				for _, spec := range softwarePackageSpecs {
+				for i, spec := range softwarePackageSpecs {
+					if spec == nil {
+						multiError = multierror.Append(multiError, fmt.Errorf("software package file %q: list item %d is empty", *teamLevelPackage.Path, i+1))
+						continue
+					}
 					spec.ReferencedYamlPath = resolvedPath
 					if err := validatePackageFieldPlacement(teamLevelPackage, spec, multiple); err != nil {
 						multiError = multierror.Append(multiError, err)

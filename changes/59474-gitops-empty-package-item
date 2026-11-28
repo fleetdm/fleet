@@ -1,0 +1,1 @@
+* Fixed a `fleetctl gitops` crash when a software package YAML file has an empty list item. It now returns an error that names the file.
