@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "24.3.965",
+      "version": "26.3.2162",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Salesforce, Inc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher = 'Salesforce, Inc' AND version_compare(version, '24.3.965') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher IN ('Salesforce, Inc', 'Tableau Software, LLC');",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Tableau 20%' AND publisher IN ('Salesforce, Inc', 'Tableau Software, LLC') AND version_compare(version, '26.3.2162') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tableau.exe');"
       },
-      "installer_url": "https://downloads.tableau.com/esdalt/2024.3.4/TableauDesktop-64bit-2024-3-4.exe",
+      "installer_url": "https://downloads.tableau.com/tssoftware/TableauDesktop-64bit-2026-3-0.exe",
       "install_script_ref": "68d90182",
       "uninstall_script_ref": "25f9ede7",
-      "sha256": "fcf55eeb582b080af3480a1b41875abf0dd0e9913150c91c6d2c240514f2cf88",
+      "sha256": "7f31a12a932f65eec1999725b2771041beaea23a9e28c876de2145e796ec76ff",
       "default_categories": [
         "Productivity"
       ]

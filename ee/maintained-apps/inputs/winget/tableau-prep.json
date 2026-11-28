@@ -1,11 +1,12 @@
 {
   "name": "Tableau Prep",
   "slug": "tableau-prep/windows",
-  "package_identifier": "Tableau.PrepBuilder",
+  "latest_installer_url": "https://www.tableau.com/downloads/prep/pc64",
   "unique_identifier": "Tableau Prep Builder",
   "open_process_names": ["tableau prep builder.exe"],
   "fuzzy_match_name": "Tableau Prep Builder 20%",
   "program_publisher": "Salesforce, Inc",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Tableau Prep Builder 20%' AND publisher IN ('Salesforce, Inc', 'Tableau Software, LLC');",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/tableau_prep_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/tableau_prep_uninstall.ps1",
   "installer_arch": "x64",
