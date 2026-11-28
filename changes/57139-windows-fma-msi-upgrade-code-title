@@ -1,0 +1,1 @@
+- Fixed Windows Fleet-maintained apps installed from an MSI whose manifest has no upgrade code (e.g. Azul Zulu JRE 25, Bitwig Studio) appearing in inventory under a separate versioned software title instead of the app's own title. Existing mismatched titles are merged shortly after server startup and hourly thereafter.
