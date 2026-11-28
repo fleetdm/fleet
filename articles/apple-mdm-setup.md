@@ -292,7 +292,22 @@ Entity A's VPP token will be assigned to the above fleets.
 
 For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
 
-The default fleets for each country's AB token will look like this:
+How you organize fleets depends on whether each country needs a different baseline configuration.
+
+#### Same baseline in every country
+
+Keep hosts in the same fleets. Set the same default fleets for each country's AB token:
+- macOS: 💻 Workstations
+- iOS: 📱🏢 Company-owned iPhones
+- iPadOS: 🔳🏢 Company-owned iPads
+
+Assign each country's VPP token to the above fleets. When you add an App Store app, choose the VPP token that has the app's licenses.
+
+Personal (BYOD) hosts enrolled with Account-driven User Enrollment (ADUE) can only get app licenses from VPP tokens in the Apple Business that owns the host's Managed Apple Account. For example, a host with a Managed Apple Account from your US Apple Business can't install an app that uses your Japan VPP token. If you manage personal hosts in several countries, keep each country's personal hosts in their own fleet.
+
+#### Different baseline per country
+
+Create separate fleets for each country. The default fleets for each country's AB token will look like this:
 - macOS: 💻 Country A - Workstations
 - iOS: 📱🏢 Country A - Company-owned iPhones
 - iPadOS: 🔳🏢 Country A - Company-owned iPads

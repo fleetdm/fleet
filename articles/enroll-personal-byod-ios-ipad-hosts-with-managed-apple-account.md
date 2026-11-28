@@ -44,6 +44,8 @@ You must enable end user authentication for this fleet. Go to **Controls > Setup
 
 In this fleet you can add custom OS settings that are compatible with hosts enrolled with Account-driven User Enrollment. To find out which payloads are compatible with User Enrollment, visit the [Apple documentation](https://support.apple.com/en-gb/guide/deployment/dep6ae3f1d5a/1/web/1.0).
 
+Personal (BYOD) hosts enrolled with Account-driven User Enrollment (ADUE) can only install App Store (VPP) apps from VPP tokens in the Apple Business that owns the host's Managed Apple Account. If you manage personal hosts in several countries, learn more in the [Apple MDM setup guide](https://fleetdm.com/guides/apple-mdm-setup#same-baseline-in-every-country).
+
 ## Step 5: Instructions for end users
 
 Share these instructions with end users to enroll their personal iPhone or iPad:
