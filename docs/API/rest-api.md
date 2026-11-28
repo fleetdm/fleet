@@ -18229,6 +18229,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| hidden | boolean | query | Show dismissed vulnerabilities or not. |
 
 
 ##### Default response
@@ -18249,6 +18250,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "cisa_known_exploit": false,// Available in Fleet Premium
       "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
       "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
+      "hidden": false
     }
   ],
   "count": 123,
@@ -18299,6 +18301,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     "cisa_known_exploit": false,// Available in Fleet Premium
     "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
     "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability."// Available in Fleet Premium
+    "hidden": false
   },
   "os_versions": [
     {
