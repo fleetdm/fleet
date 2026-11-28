@@ -1,3 +1,22 @@
+// Inset Fleet content from the Setup Assistant window edge when the
+// setup-experience card is rendering. Margin sits on body (not padding on
+// .app-wrap) so the gap paints html's background instead of Fleet's, letting
+// the SA chrome's own color read through. Explicit html color stops body's
+// $core-fleet-white from propagating to the canvas. Height/min-height trims
+// prevent a vertical scrollbar on the browser `/device/<token>` route.
+html:has(.setting-up-your-device) {
+  background-color: $ui-off-white;
+}
+
+body:has(.setting-up-your-device) {
+  margin: $pad-medium;
+  height: calc(100% - #{$pad-medium} * 2);
+}
+
+.app-wrap:has(.setting-up-your-device) {
+  min-height: calc(100vh - #{$pad-medium} * 2);
+}
+
 .app-wrap {
   .site-nav-left {
     .loading-spinner {
