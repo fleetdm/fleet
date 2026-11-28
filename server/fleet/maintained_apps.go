@@ -26,9 +26,9 @@ type MaintainedApp struct {
 
 	// TitleName is the name of the software title this app's installer owns, which is
 	// not necessarily Name: a Windows app's title is never renamed when the catalog
-	// name changes (the darwin reconcile passes are platform-scoped, and the installer
-	// only renames when an upgrade code is present). Windows software ingestion merges
-	// onto TitleID, and this is that title's name.
+	// name changes (the Windows reconcile pass follows unique_identifier, not Name, and
+	// the installer only renames when an upgrade code is present). Windows software
+	// ingestion merges onto TitleID, and this is that title's name.
 	TitleName string `json:"-" db:"title_name"`
 }
 
