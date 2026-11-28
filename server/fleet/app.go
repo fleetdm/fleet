@@ -1257,6 +1257,7 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, g := range c.Integrations.GoogleWorkspace {
 			gWorkspace := *g
 			clone.Integrations.GoogleWorkspace[i] = &gWorkspace
+			clone.Integrations.GoogleWorkspace[i].AdditionalDomains = slices.Clone(g.AdditionalDomains)
 			if len(g.ApiKey.Values) > 0 {
 				clone.Integrations.GoogleWorkspace[i].ApiKey.Values = make(map[string]string, len(g.ApiKey.Values))
 				maps.Copy(clone.Integrations.GoogleWorkspace[i].ApiKey.Values, g.ApiKey.Values)

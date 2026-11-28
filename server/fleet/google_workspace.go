@@ -24,11 +24,11 @@ type GoogleWorkspaceGroup struct {
 // Google's data model to Fleet's ScimUser happens behind this interface so this
 // package does not depend on the Google API client.
 type GoogleWorkspaceDirectory interface {
-	// ListUsers returns every user in the configured domain mapped to a ScimUser.
+	// ListUsers returns every user in the configured domains mapped to a ScimUser.
 	// ExternalID is set to the Google user ID; the ScimUser's group membership is
 	// not populated here — it is resolved from ListGroups by the sync engine.
 	ListUsers(ctx context.Context) ([]*ScimUser, error)
-	// ListGroups returns every group in the configured domain along with the
+	// ListGroups returns every group in the configured domains along with the
 	// external IDs (Google user IDs) of each group's members.
 	ListGroups(ctx context.Context) ([]*GoogleWorkspaceGroup, error)
 }

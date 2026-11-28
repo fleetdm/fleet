@@ -70,6 +70,65 @@ func TestValidateGoogleWorkspaceIntegrations(t *testing.T) {
 			wantField: "integrations.google_workspace.domain",
 		},
 		{
+			name: "valid additional domains",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"example.org", " example.net "},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+		},
+		{
+			name: "blank additional domain",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"example.org", "  "},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+			wantField: "integrations.google_workspace.additional_domains",
+		},
+		{
+			name: "additional domain duplicates primary domain",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"EXAMPLE.com"},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+			wantField: "integrations.google_workspace.additional_domains",
+		},
+		{
+			name: "comma-separated additional domains",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"example.org, example.net"},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+			wantField: "integrations.google_workspace.additional_domains",
+		},
+		{
+			name: "non-breaking space in additional domain",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"exam\u00a0ple.org"},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+			wantField: "integrations.google_workspace.additional_domains",
+		},
+		{
+			name: "duplicate additional domains",
+			intgs: []*GoogleWorkspaceIntegration{{
+				Domain:                "example.com",
+				AdditionalDomains:     []string{"example.org", "example.org "},
+				ImpersonatedUserEmail: "admin@example.com",
+				ApiKey:                validKey(),
+			}},
+			wantField: "integrations.google_workspace.additional_domains",
+		},
+		{
 			name: "missing impersonated_user_email",
 			intgs: []*GoogleWorkspaceIntegration{{
 				Domain: "example.com",
@@ -104,6 +163,7 @@ func TestGoogleWorkspaceObfuscateAndClone(t *testing.T) {
 	ac := &AppConfig{}
 	ac.Integrations.GoogleWorkspace = []*GoogleWorkspaceIntegration{{
 		Domain:                "example.com",
+		AdditionalDomains:     []string{"example.org"},
 		ImpersonatedUserEmail: "admin@example.com",
 		ApiKey: GoogleCalendarApiKey{Values: map[string]string{
 			GoogleCalendarEmail:      "svc@x.com",
@@ -118,6 +178,8 @@ func TestGoogleWorkspaceObfuscateAndClone(t *testing.T) {
 	require.Len(t, clonedAC.Integrations.GoogleWorkspace, 1)
 	clonedAC.Integrations.GoogleWorkspace[0].ApiKey.Values[GoogleCalendarPrivateKey] = "mutated"
 	assert.Equal(t, "secret", ac.Integrations.GoogleWorkspace[0].ApiKey.Values[GoogleCalendarPrivateKey])
+	clonedAC.Integrations.GoogleWorkspace[0].AdditionalDomains[0] = "mutated.com"
+	assert.Equal(t, []string{"example.org"}, ac.Integrations.GoogleWorkspace[0].AdditionalDomains)
 
 	// Obfuscate masks the service account key.
 	ac.Obfuscate()

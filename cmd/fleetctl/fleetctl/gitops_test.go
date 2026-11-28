@@ -331,6 +331,86 @@ org_settings:
 	}
 }
 
+func TestGitOpsGlobalGoogleWorkspaceAdditionalDomains(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables.
+	// GitOps is declarative: additional_domains in the YAML replaces the saved
+	// list, and omitting the key clears it.
+	cases := []struct {
+		name  string
+		extra string
+		want  []string
+	}{
+		{"omitted", "", nil},
+		{"empty list", "\n        additional_domains: []", []string{}},
+		{"replaced", "\n        additional_domains:\n          - example.net", []string{"example.net"}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+				License:       &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)},
+				KeyValueStore: testing_utils.NewMemKeyValueStore(),
+			})
+			setupEmptyGitOpsMocks(ds)
+
+			var savedAppConfig *fleet.AppConfig
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				cfg := &fleet.AppConfig{}
+				cfg.Integrations.GoogleWorkspace = []*fleet.GoogleWorkspaceIntegration{{
+					Domain:                "example.com",
+					AdditionalDomains:     []string{"example.org"},
+					ImpersonatedUserEmail: "admin@example.com",
+					ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						fleet.GoogleCalendarEmail:      "sa@example.com",
+						fleet.GoogleCalendarPrivateKey: "k",
+					}},
+				}}
+				return cfg, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+				savedAppConfig = config
+				return nil
+			}
+			ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+				return nil
+			}
+
+			t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+
+			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+			require.NoError(t, err)
+			content := fmt.Sprintf(`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps GW Domains Test
+  integrations:
+    google_workspace:
+      - domain: example.com
+        impersonated_user_email: admin@example.com
+        api_key_json:
+          client_email: sa@example.com
+          private_key: k%s
+  secrets:
+`, c.extra)
+			_, err = tmpFile.WriteString(content)
+			require.NoError(t, err)
+
+			_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+
+			require.NotNil(t, savedAppConfig)
+			require.Len(t, savedAppConfig.Integrations.GoogleWorkspace, 1)
+			assert.Equal(t, c.want, savedAppConfig.Integrations.GoogleWorkspace[0].AdditionalDomains)
+		})
+	}
+}
+
 func TestGitOpsGlobalGoogleConditionalAccessTurnedOff(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables.
 	// An absent or null google_conditional_access turns the integration off.

@@ -77,6 +77,8 @@ const defaultMaxPagesPerListing = 10_000
 // rationale live with the configuration in server/config. A limit of 0 is disabled
 // (server config validation rejects negatives); the page cap always applies.
 //
+// Limits apply to the whole pull across every configured domain.
+//
 // Exceeding a limit fails the sync rather than truncating the pull: reconciliation
 // treats the pull as authoritative and deletes any scim user/group missing from it,
 // so a truncated directory would destroy IdP data.
@@ -131,10 +133,10 @@ type lowLevelAPI interface {
 
 // Directory implements fleet.GoogleWorkspaceDirectory.
 type Directory struct {
-	api    lowLevelAPI
-	domain string
-	logger *slog.Logger
-	limits Limits
+	api     lowLevelAPI
+	domains []string
+	logger  *slog.Logger
+	limits  Limits
 }
 
 // NewDirectory builds a Directory that talks to the real Admin SDK Directory API
@@ -144,7 +146,7 @@ func NewDirectory(ctx context.Context, intg *fleet.GoogleWorkspaceIntegration, l
 	if err != nil {
 		return nil, err
 	}
-	return &Directory{api: api, domain: intg.Domain, logger: logger, limits: limits}, nil
+	return &Directory{api: api, domains: intg.Domains(), logger: logger, limits: limits}, nil
 }
 
 // NewDirectoryFactory returns a NewDirectory bound to limits, for injecting into
@@ -162,55 +164,87 @@ func (d *Directory) log() *slog.Logger {
 	return d.logger
 }
 
-// ListUsers returns every user in the configured domain mapped to a ScimUser. Each
-// page is mapped as it arrives so the raw Directory objects can be collected.
+// ListUsers returns every user in the configured domains mapped to a ScimUser.
+// Each page is mapped as it arrives so the raw Directory objects can be collected.
 func (d *Directory) ListUsers(ctx context.Context) ([]*fleet.ScimUser, error) {
 	logger := d.log()
 	var out []*fleet.ScimUser
-	err := d.api.ListUsers(ctx, d.domain, func(users []*directory.User) error {
-		for _, u := range users {
-			// A user with no ID or primary email cannot be linked to a host, so skip it.
-			if u.Id == "" || u.PrimaryEmail == "" {
-				logger.DebugContext(ctx, "skipping google workspace user with missing id or primary email",
-					"id", u.Id, "primary_email", u.PrimaryEmail)
-				continue
+	seen := make(map[string]struct{})
+	// Counts raw records, duplicates included, so the limit doesn't depend on how
+	// results are paginated. The low-level API only enforces MaxUsers per domain.
+	received := 0
+	for _, domain := range d.domains {
+		if err := d.api.ListUsers(ctx, domain, func(users []*directory.User) error {
+			received += len(users)
+			if d.limits.MaxUsers > 0 && received > d.limits.MaxUsers {
+				return ctxerr.Errorf(ctx, "exceeded the limit of %d users; raise %s to sync these domains",
+					d.limits.MaxUsers, maxUsersSetting)
 			}
-			su := mapUser(u)
-			logger.DebugContext(ctx, "ingested google workspace user",
-				"external_id", u.Id,
-				"user_name", su.UserName,
-				"active", derefBool(su.Active),
-				"department", derefString(su.Department),
-				"num_emails", len(su.Emails),
-				// Raw organizations as returned by the Directory API, to diagnose
-				// missing department values (empty/absent means the API returned none).
-				"raw_organizations", rawJSON(u.Organizations),
-			)
-			out = append(out, su)
+			for _, u := range users {
+				d.appendUser(ctx, logger, u, seen, &out)
+			}
+			return nil
+		}); err != nil {
+			// Never return what was mapped before the failure: the sync deletes every
+			// scim user missing from the pull.
+			return nil, ctxerr.Wrapf(ctx, err, "list google workspace users in domain %s", domain)
 		}
-		return nil
-	})
-	if err != nil {
-		// Never return what was mapped before the failure: the sync deletes every
-		// scim user missing from the pull.
-		return nil, ctxerr.Wrap(ctx, err, "list google workspace users")
 	}
 	return out, nil
 }
 
-// ListGroups returns every group in the configured domain with its members'
+func (d *Directory) appendUser(ctx context.Context, logger *slog.Logger, u *directory.User, seen map[string]struct{}, out *[]*fleet.ScimUser) {
+	// A user with no ID or primary email cannot be linked to a host, so skip it.
+	if u.Id == "" || u.PrimaryEmail == "" {
+		logger.DebugContext(ctx, "skipping google workspace user with missing id or primary email",
+			"id", u.Id, "primary_email", u.PrimaryEmail)
+		return
+	}
+	if _, dup := seen[u.Id]; dup {
+		return
+	}
+	seen[u.Id] = struct{}{}
+	su := mapUser(u)
+	logger.DebugContext(ctx, "ingested google workspace user",
+		"external_id", u.Id,
+		"user_name", su.UserName,
+		"active", derefBool(su.Active),
+		"department", derefString(su.Department),
+		"num_emails", len(su.Emails),
+		// Raw organizations as returned by the Directory API, to diagnose
+		// missing department values (empty/absent means the API returned none).
+		"raw_organizations", rawJSON(u.Organizations),
+	)
+	*out = append(*out, su)
+}
+
+// ListGroups returns every group in the configured domains with its members'
 // external IDs (Google user IDs).
 func (d *Directory) ListGroups(ctx context.Context) ([]*fleet.GoogleWorkspaceGroup, error) {
-	groups, err := d.api.ListGroups(ctx, d.domain)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list google workspace groups")
+	var groups []*directory.Group
+	for _, domain := range d.domains {
+		domainGroups, err := d.api.ListGroups(ctx, domain)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "list google workspace groups in domain %s", domain)
+		}
+		groups = append(groups, domainGroups...)
+		// The low-level API enforces MaxGroups per domain; this enforces it across domains.
+		if d.limits.MaxGroups > 0 && len(groups) > d.limits.MaxGroups {
+			return nil, ctxerr.Errorf(ctx, "exceeded the limit of %d groups; raise %s to sync these domains",
+				d.limits.MaxGroups, maxGroupsSetting)
+		}
 	}
 	out := make([]*fleet.GoogleWorkspaceGroup, 0, len(groups))
+	seen := make(map[string]struct{}, len(groups))
 	memberships := 0
 	for _, g := range groups {
 		if g.Id == "" {
 			continue
 		}
+		if _, dup := seen[g.Id]; dup {
+			continue
+		}
+		seen[g.Id] = struct{}{}
 		members, err := d.api.ListGroupMembers(ctx, g.Id)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "list members of google workspace group %s", g.Id)

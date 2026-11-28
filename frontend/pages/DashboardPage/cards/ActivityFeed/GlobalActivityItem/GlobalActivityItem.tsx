@@ -2004,7 +2004,15 @@ const TAGGED_TEMPLATES = {
     <> deleted Okta conditional access configuration.</>
   ),
   googleWorkspaceIntegration: (verb: string) => (activity: IActivity) => {
-    const { domain } = activity.details ?? {};
+    const { domain, added_domains: added = [], removed_domains: removed = [] } =
+      activity.details ?? {};
+    const renderDomains = (domains: string[]) =>
+      domains.map((d, i) => (
+        <React.Fragment key={d}>
+          {i > 0 && ", "}
+          <strong>{d}</strong>
+        </React.Fragment>
+      ));
     return (
       <>
         {" "}
@@ -2015,6 +2023,12 @@ const TAGGED_TEMPLATES = {
             for <strong>{domain}</strong>
           </>
         ) : null}
+        {added.length > 0 && <>, adding {renderDomains(added)}</>}
+        {removed.length > 0 && (
+          <>
+            {added.length > 0 ? " and" : ","} removing {renderDomains(removed)}
+          </>
+        )}
         .
       </>
     );
