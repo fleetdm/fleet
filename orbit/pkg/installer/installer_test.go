@@ -2,6 +2,8 @@ package installer
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -768,6 +770,85 @@ func TestInstallerRunWithInstallerFromURL(t *testing.T) {
 		assert.True(t, getInstallerDetailsFnCalled)
 		assert.Equal(t, installDetails.ExecutionID, installIdRequested)
 	})
+}
+
+func TestAttemptInstallVerifiesInstallerSHA256(t *testing.T) {
+	t.Parallel()
+
+	complete := []byte("complete installer")
+	sum := sha256.Sum256(complete)
+	completeHash := hex.EncodeToString(sum[:])
+	truncated := complete[:8]
+
+	writeInstaller := func(dir, name string, contents []byte) (string, error) {
+		path := filepath.Join(dir, name)
+		return path, os.WriteFile(path, contents, 0o600)
+	}
+
+	cases := []struct {
+		name          string
+		hash          string
+		withURL       bool
+		cdnContents   []byte
+		fleetContents []byte
+		wantFleet     bool
+		wantInstaller string // installer the script runs with; empty means the script must not run
+	}{
+		{name: "CDN download matches", hash: completeHash, withURL: true, cdnContents: complete, wantInstaller: "cdn.zip"},
+		{name: "truncated CDN download falls back to Fleet", hash: completeHash, withURL: true, cdnContents: truncated, fleetContents: complete, wantFleet: true, wantInstaller: "fleet.zip"},
+		{name: "truncated Fleet download fails", hash: completeHash, fleetContents: truncated, wantFleet: true},
+		{name: "truncated CDN and Fleet downloads fail", hash: completeHash, withURL: true, cdnContents: truncated, fleetContents: truncated, wantFleet: true},
+		{name: "uppercase hash matches", hash: strings.ToUpper(completeHash), fleetContents: complete, wantFleet: true, wantInstaller: "fleet.zip"},
+		{name: "no hash from older server skips the check", fleetContents: truncated, wantFleet: true, wantInstaller: "fleet.zip"},
+		{name: "value that isn't a SHA-256 skips the check", hash: "no_check", fleetContents: truncated, wantFleet: true, wantInstaller: "fleet.zip"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			var fleetCalled bool
+			oc := &TestOrbitClient{
+				downloadInstallerFromURLFn: func(_, _, dir string) (string, error) {
+					return writeInstaller(dir, "cdn.zip", c.cdnContents)
+				},
+				downloadInstallerFn: func(_ uint, dir string) (string, error) {
+					fleetCalled = true
+					return writeInstaller(dir, "fleet.zip", c.fleetContents)
+				},
+			}
+			var installerPath string
+			r := &Runner{
+				OrbitClient: oc,
+				tempDirFn:   func(string, string) (string, error) { return t.TempDir(), nil },
+				removeAllFn: func(string) error { return nil },
+				execCmdFn: func(_ context.Context, _ string, env []string) ([]byte, int, error) {
+					for _, e := range env {
+						if p, ok := strings.CutPrefix(e, "INSTALLER_PATH="); ok {
+							installerPath = p
+						}
+					}
+					return []byte("ok"), 0, nil
+				},
+			}
+
+			details := &fleet.SoftwareInstallDetails{InstallerID: 1, InstallScript: "echo install", InstallerSHA256: c.hash}
+			if c.withURL {
+				details.SoftwareInstallerURL = &fleet.SoftwareInstallerURL{URL: "https://cdn.example.com/installer", Filename: "cdn.zip"}
+			}
+			payload, err := r.attemptInstall(t.Context(), details, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+			require.Equal(t, c.wantFleet, fleetCalled)
+
+			if c.wantInstaller != "" {
+				require.NoError(t, err)
+				require.Equal(t, c.wantInstaller, filepath.Base(installerPath))
+				return
+			}
+			require.ErrorIs(t, err, errInstallerHashMismatch)
+			require.True(t, isNetworkOrTransientError(err))
+			require.Empty(t, installerPath, "install script must not run on a mismatched installer")
+			require.Equal(t, fleet.ExitCodeInstallerDownloadFailed, *payload.InstallScriptExitCode)
+		})
+	}
 }
 
 func TestScriptsDisabled(t *testing.T) {
