@@ -101,6 +101,8 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter, domainEn
 	ctxerr.Handle(ctx, err)
 	origErr := err
 
+	// The body is always JSON; without this Go sniffs it as text/plain.
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	// Every encode below, including the domain encoder's, goes through enc.
 	enc := json.NewEncoder(redact.JSONWriter(ctx, w))
 	enc.SetIndent("", "  ")
