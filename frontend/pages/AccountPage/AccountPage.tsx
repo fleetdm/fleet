@@ -1,3 +1,4 @@
+import { upperFirst } from "lodash";
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
@@ -15,6 +16,7 @@ import SidePanelContent from "components/SidePanelContent";
 import SidePanelPage from "components/SidePanelPage";
 import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import { splitServerErrors } from "interfaces/errors";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
 import authToken from "utilities/auth_token";
@@ -22,7 +24,7 @@ import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
 
 import AccountSidePanel from "./AccountSidePanel";
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, INCORRECT_PASSWORD_ERROR } from "./helpers";
 
 const baseClass = "account-page";
 
@@ -39,6 +41,14 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const [updatedUser, setUpdatedUser] = useState<Partial<IUser>>({});
   const [showApiTokenModal, setShowApiTokenModal] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  // Kept apart from `errors` (which the main form also reads) so a wrong
+  // password isn't toasted a second time by the account form behind the modal.
+  const [emailModalErrors, setEmailModalErrors] = useState<{
+    [key: string]: string;
+  }>({});
+  const [passwordErrors, setPasswordErrors] = useState<{
+    [key: string]: string;
+  }>({});
 
   const onCancel = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();
@@ -47,6 +57,9 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
 
   const onShowPasswordModal = () => {
     setShowPasswordModal(true);
+    // Drop stale server errors so a reopen doesn't replay a previous attempt's
+    // toast through the form hook's serverErrors effect.
+    setPasswordErrors({});
     return false;
   };
 
@@ -61,11 +74,15 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     // Drop stale server errors so a reopen doesn't replay a previous attempt's
     // toast through the form hook's serverErrors effect.
     setErrors({});
+    setEmailModalErrors({});
     return false;
   };
 
   const onTogglePasswordModal = () => {
     setShowPasswordModal(!showPasswordModal);
+    // Drop stale server errors so a reopen doesn't replay a previous attempt's
+    // toast through the form hook's serverErrors effect.
+    setPasswordErrors({});
     return false;
   };
 
@@ -106,12 +123,27 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
       // passing them through (the toast below already covers the global error).
       const {
         base: _base,
-        http_status: _httpStatus,
+        http_status: httpStatus,
         ...fieldErrors
       } = errorObject;
+
+      // A wrong password in the Confirm email update modal comes back as a bare
+      // 403 with no `errors` array, so there is no `base` or field message to
+      // read. Show it on the password field (the form hook also toasts it) and
+      // keep the modal open so the user can retry.
+      if (
+        updated.email &&
+        updated.password &&
+        httpStatus === 403 &&
+        !errorObject.base
+      ) {
+        setEmailModalErrors({ password: INCORRECT_PASSWORD_ERROR });
+        return false;
+      }
+
       setErrors(fieldErrors);
       notify.error(
-        errorObject.base.includes("already exists")
+        errorObject.base?.includes("already exists")
           ? "A user with this email address already exists."
           : "Could not edit user. Please try again.",
         { response }
@@ -130,8 +162,23 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
       await usersAPI.changePassword(formData);
       notify.success("Password changed successfully");
       setShowPasswordModal(false);
+      setPasswordErrors({});
     } catch (e) {
-      notify.error(getErrorMessage(e), { response: e });
+      // A field-specific error (e.g. a wrong current password) renders inline
+      // on its field; the form hook also toasts it. Anything else is toasted
+      // here.
+      const { fieldErrors } = splitServerErrors(e, {
+        old_password: "old_password",
+      });
+      if (fieldErrors.old_password) {
+        // The server's reason is lowercase API output ("old password does not
+        // match"); capitalize it to match the rest of the UI copy.
+        setPasswordErrors({
+          old_password: upperFirst(fieldErrors.old_password),
+        });
+      } else {
+        notify.error(getErrorMessage(e), { response: e });
+      }
     }
   };
 
@@ -155,7 +202,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
           defaultData={updatedUser}
           handleSubmit={emailSubmit}
           onCancel={onToggleEmailModal}
-          serverErrors={errors}
+          serverErrors={emailModalErrors}
         />
       </Modal>
     );
@@ -171,6 +218,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         <ChangePasswordForm
           handleSubmit={handleSubmitPasswordForm}
           onCancel={onTogglePasswordModal}
+          serverErrors={passwordErrors}
         />
       </Modal>
     );

@@ -20,6 +20,8 @@ export interface IChangePasswordFormData {
 interface IChangePasswordFormProps {
   handleSubmit: (formData: IChangePasswordFormData) => void | Promise<unknown>;
   onCancel: () => void;
+  /** Field-keyed errors from the API, shown inline (and toasted once). */
+  serverErrors?: IFormErrors | null;
 }
 
 const PASSWORD_ERRORS: Record<string, string> = {
@@ -62,6 +64,7 @@ const validate = (formData: IChangePasswordFormData): IFormErrors => {
 const ChangePasswordForm = ({
   handleSubmit,
   onCancel,
+  serverErrors,
 }: IChangePasswordFormProps): JSX.Element => {
   const {
     getTextFieldProps,
@@ -74,6 +77,7 @@ const ChangePasswordForm = ({
       new_password_confirmation: "",
     },
     validate,
+    serverErrors,
     skipTrim: ["old_password", "new_password", "new_password_confirmation"],
   });
 
