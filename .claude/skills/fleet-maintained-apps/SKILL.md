@@ -90,6 +90,7 @@ go run cmd/maintained-apps/main.go --slug="<token>/<platform>" --debug
    - `installer_format` is what the file really is (`dmg`/`zip`/`pkg`), not what the URL or artifact implies. A zip or pkg inside a dmg, or a dmg inside a zip, needs a custom install script.
    - `unique_identifier` is the top-level app's `CFBundleIdentifier`. Never take it from the cask's `zap`, `quit`, `pkgutil`, or `launchctl` entries, a pkg receipt id, or a prefs-plist name: each of those has shipped a wrong id (ForkLift `-4`, GIMP `-3.0`, Tableau's receipt id, 4K Video Downloader's prefs name, ShareFile's XPC service).
    - Compare `CFBundleShortVersionString` and `CFBundleVersion` with the cask `version`. The default patched query compares `bundle_short_version`, so if that's missing, shorter, or a marketing version, the patch policy fails on current hosts ([queries.md](references/queries.md#when-the-version-column-doesnt-track-the-manifest)).
+   - **A build in parentheses** in `CFBundleShortVersionString` (`7.2.5 (90525)`, `5.8.2(095C)`) makes `version_compare` rank the parenthesized segment by length, so outdated hosts pass. If `CFBundleVersion` equals the cask version (Zoom, Zoom Rooms, Max, CursorSense, SteerMouse), add the token to the `bundle_version` list in `ingester.go`. Otherwise (Ableton Live, Adobe DNG Converter), set `"parenthesized_build_version": true` in the input to compare only the release before the parentheses.
    - Gatekeeper must say `accepted`. A rejected or unnotarized app fails CI and won't launch for users.
    - Note nested apps (the open query only sees the main executable), pkg scripts that kill or relaunch the app, and a payload whose version differs from the cask's.
 3. **Create `inputs/homebrew/<token>.json`**: `name`, `slug` (`<token>/darwin`), `unique_identifier`, `token` (the cask token, which can differ from the slug), `installer_format`, `default_categories`. Scripts generate from the cask's artifacts and `zap`. Add custom scripts only when the generated ones can't work, and read [macos-scripts.md](references/macos-scripts.md) first: custom scripts must copy the template's helpers verbatim, and guard tests in `ingesters/homebrew/scripts_test.go` fail on stale copies.
@@ -197,6 +198,7 @@ A green run means the installer downloaded, installed, registered under the exis
 | `installer_format` (homebrew) | What the download actually is: `dmg`, `pkg`, or `zip`. |
 | `install_script_path` / `uninstall_script_path` | Repo-relative custom script, embedded verbatim. Custom winget uninstall scripts get `$PACKAGE_ID` substituted, nothing else. |
 | `pre_uninstall_scripts` / `post_uninstall_scripts` (homebrew) | Lines wrapped around the generated uninstall. Not allowed with `uninstall_script_path`. |
+| `parenthesized_build_version` (homebrew) | `true` when `CFBundleShortVersionString` has a build in parentheses and `CFBundleVersion` doesn't match the cask version. The patched query then compares `regex_match(bundle_short_version, '^[^ (]*', 0)`, the release before the parentheses. |
 | `cask_path` (homebrew) | Internal: points at `custom-tap/`. Not a way to add FMAs (ground rule 4). |
 | `program_publisher` (winget) | Exists-query publisher when the registry Publisher ≠ the winget locale Publisher. |
 | `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`, for versioned DisplayNames. A string → `name LIKE '<string>'` verbatim (`"Mozilla Firefox % ESR %"`). Wrong in both directions: see [queries.md](references/queries.md#exists-name-and-publisher-matching). |
@@ -216,7 +218,7 @@ A green run means the installer downloaded, installed, registered under the exis
 ## Pre-ship checklist
 
 - [ ] Identity fields come from the real installer (Info.plist, MSI Property table, Burn manifest, NSIS/Inno header, `AppsAndFeaturesEntries`), not catalog names. Anything unverified is called out in the PR.
-- [ ] macOS: the cask has an `app` artifact; `installer_format` matches the real download; Gatekeeper accepts the app; the bundle id is the top-level app's.
+- [ ] macOS: the cask has an `app` artifact; `installer_format` matches the real download; Gatekeeper accepts the app; the bundle id is the top-level app's; a short version with a build in parentheses compares `bundle_version` or sets `parenthesized_build_version`.
 - [ ] Custom macOS scripts: helpers match `scripts.go`; a failed quit stops the script before the app is replaced; any mounted image is detached on every path.
 - [ ] Second platform: slug token and `name` match the existing FMA.
 - [ ] Windows: silent switches match the framework you confirmed; the uninstall uses the defensive `UninstallString` parser and picks the right key.
