@@ -1077,7 +1077,8 @@ WITH all_latest_activities AS (
 			host_script_results
 		WHERE
 			host_id = ? AND
-			canceled = 0
+			canceled = 0 AND
+			removed = 0
 	) completed_ranked
 	WHERE row_num = 1
 

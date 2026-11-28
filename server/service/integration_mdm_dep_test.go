@@ -3287,6 +3287,208 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	require.Equal(t, installerPayload2.Title, getHostSw.Software[1].Name)
 }
 
+func (s *integrationMDMTestSuite) TestADEMacOSReenrollAfterWipeClearsInstallAndScriptStatus() {
+	t := s.T()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	ctx := t.Context()
+
+	user, err := s.ds.UserByEmail(ctx, "admin1@example.com")
+	require.NoError(t, err)
+
+	devices := []godep.Device{
+		{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"},
+	}
+	s.mockDEPResponse(t.Name(), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+			assert.NoError(t, err)
+		case "/profile":
+			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			assert.NoError(t, err)
+		case "/server/devices":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices})
+			assert.NoError(t, err)
+		case "/devices/sync":
+			err := encoder.Encode(godep.DeviceResponse{Devices: devices, Cursor: "foo"})
+			assert.NoError(t, err)
+		case "/profile/devices":
+			b, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			var prof profileAssignmentReq
+			assert.NoError(t, json.Unmarshal(b, &prof))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			err = encoder.Encode(resp)
+			assert.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{}`))
+		}
+	}))
+
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		return map[string]*push.Response{}, nil
+	}
+
+	// a wiped device keeps its UDID when it re-enrolls
+	deviceUUID := strings.ToUpper(uuid.NewString())
+	performHostEnroll := func() *mdmtest.TestAppleMDMClient {
+		s.runDEPSchedule()
+
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+		mdmDevice.UUID = deviceUUID
+		mdmDevice.SerialNumber = devices[0].SerialNumber
+		require.NoError(t, mdmDevice.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+
+		var applyResp applyEnrollSecretSpecResponse
+		s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+			Spec: &fleet.EnrollSecretSpec{
+				Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+			},
+		}, http.StatusOK, &applyResp)
+
+		j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   t.Name(),
+			HostIdentifier: mdmDevice.UUID,
+		})
+		require.NoError(t, err)
+		var enrollResp contract.EnrollOsqueryAgentResponse
+		hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+		require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollResp))
+		require.NotEmpty(t, enrollResp.NodeKey)
+
+		s.runWorker()
+		s.awaitTriggerProfileSchedule(t)
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		return mdmDevice
+	}
+
+	mdmDevice := performHostEnroll()
+
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	h := listHostsRes.Hosts[0]
+	h.OrbitNodeKey = new("some-orbit-key")
+	require.NoError(t, s.ds.UpdateHost(ctx, h.Host))
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("selfservice1"), t.TempDir)
+	require.NoError(t, err)
+	installerPayload := fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install",
+		PreInstallQuery: "SELECT 1",
+		InstallerFile:   tfr,
+		StorageID:       "selfservice1",
+		Filename:        "selfservice1.pkg",
+		Title:           "selfservice1",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		Platform:        string(fleet.MacOSPlatform),
+		SelfService:     true,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &installerPayload)
+	require.NoError(t, err)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", h.ID, titleID), installSoftwareRequest{}, http.StatusAccepted)
+	installUUID := getLatestSoftwareInstallExecID(t, s.ds, h.ID)
+	s.Do("POST", "/api/fleet/orbit/software_install/result", fleet.OrbitPostSoftwareInstallResultRequest{
+		OrbitNodeKey: *h.OrbitNodeKey,
+		HostSoftwareInstallResultPayload: &fleet.HostSoftwareInstallResultPayload{
+			HostID:                h.ID,
+			InstallUUID:           installUUID,
+			InstallScriptExitCode: new(0),
+			InstallScriptOutput:   new("done"),
+		},
+	}, http.StatusNoContent)
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{Name: t.Name() + ".sh", ScriptContents: "echo hello"})
+	require.NoError(t, err)
+	var runResp fleet.RunScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: h.ID, ScriptID: &script.ID}, http.StatusAccepted, &runResp)
+	var orbitPostScriptResp fleet.OrbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *h.OrbitNodeKey, runResp.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	checkStatuses := func(wantCleared bool) {
+		var swResp getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", h.ID), nil, http.StatusOK, &swResp, "self_service", "true")
+		require.Len(t, swResp.Software, 1)
+		sw := swResp.Software[0]
+		require.Equal(t, titleID, sw.ID)
+		require.NotNil(t, sw.SoftwarePackage)
+
+		var scriptsResp fleet.GetHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", h.ID), nil, http.StatusOK, &scriptsResp)
+		var scriptDetail *fleet.HostScriptDetail
+		for _, sd := range scriptsResp.Scripts {
+			if sd.ScriptID == script.ID {
+				scriptDetail = sd
+			}
+		}
+		require.NotNil(t, scriptDetail)
+
+		if wantCleared {
+			require.Nil(t, sw.Status)
+			require.Nil(t, sw.SoftwarePackage.LastInstall)
+			require.Nil(t, scriptDetail.LastExecution)
+			return
+		}
+		require.NotNil(t, sw.Status)
+		require.Equal(t, fleet.SoftwareInstalled, *sw.Status)
+		require.NotNil(t, sw.SoftwarePackage.LastInstall)
+		require.Equal(t, installUUID, sw.SoftwarePackage.LastInstall.InstallUUID)
+		require.NotNil(t, scriptDetail.LastExecution)
+		require.Equal(t, runResp.ExecutionID, scriptDetail.LastExecution.ExecutionID)
+	}
+	checkStatuses(false)
+
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil, http.StatusOK, &wipeResp)
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	performHostEnroll()
+
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 1)
+	require.Equal(t, h.ID, listHostsRes.Hosts[0].ID)
+
+	checkStatuses(true)
+
+	// past activities still open the results from before the wipe
+	var installResults getSoftwareInstallResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/install/%s/results", installUUID), nil, http.StatusOK, &installResults)
+	require.NotNil(t, installResults.Results)
+	require.Equal(t, fleet.SoftwareInstalled, installResults.Results.Status)
+	var scriptResult fleet.GetScriptResultResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", runResp.ExecutionID), nil, http.StatusOK, &scriptResult)
+	require.NotNil(t, scriptResult.ExitCode)
+	require.EqualValues(t, 0, *scriptResult.ExitCode)
+	require.Equal(t, "ok", scriptResult.Output)
+}
+
 func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 	t := s.T()
 	s.enableABM(t.Name())
