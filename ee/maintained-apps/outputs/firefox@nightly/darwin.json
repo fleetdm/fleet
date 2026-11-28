@@ -4,13 +4,13 @@
       "version": "163.0a1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.nightly';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.nightly' AND version_compare(bundle_version, '16326.11.26') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.nightly' AND version_compare(bundle_version, '16326.11.27') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.mozilla.nightly' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://ftp.mozilla.org/pub/firefox/nightly/2026/11/2026-11-26-19-31-50-mozilla-central/firefox-163.0a1.en-US.mac.dmg",
+      "installer_url": "https://ftp.mozilla.org/pub/firefox/nightly/2026/11/2026-11-27-09-51-22-mozilla-central/firefox-163.0a1.en-US.mac.dmg",
       "install_script_ref": "b7e562c5",
       "uninstall_script_ref": "2abda35d",
-      "sha256": "cfab5625dd5f443003a66cc4359afa15b626c5c332fea69425c5cf53b20aecb3",
+      "sha256": "9c14464724dccf43af341a55c14f1f5fb74c9ad77badb5e31551d2b34317f7c3",
       "default_categories": [
         "Browsers"
       ]
