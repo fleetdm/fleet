@@ -102,8 +102,8 @@ const TargetsInput = ({
           >
             {!isTargetsLoading && dropdownHosts?.length === 10 && (
               <p className={`${baseClass}__search-limit`}>
-                Showing up to 10 matching hosts. Refine your search to narrow the
-                results.
+                Showing up to 10 matching hosts. Refine your search to narrow
+                the results.
               </p>
             )}
             <TableContainer<Row<IHost>>
