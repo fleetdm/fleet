@@ -24,6 +24,9 @@ interface IGitOpsModeTooltipWrapper {
   /** Keeps the children disabled in GitOps mode but hides this tooltip, for controls that
    *  already explain a more basic reason they're disabled (e.g. MDM is off). */
   disableTooltip?: boolean;
+  /** Same as TooltipWrapper's: positions the tooltip against the first descendant matching
+   *  this selector, while hovering anywhere in the wrapped content opens it. */
+  anchorChildSelector?: string;
 }
 
 const baseClass = "gitops-mode-tooltip-wrapper";
@@ -43,6 +46,7 @@ const GitOpsModeTooltipWrapper = ({
   entityType,
   isInputField = false,
   disableTooltip = false,
+  anchorChildSelector,
 }: IGitOpsModeTooltipWrapper) => {
   const { gitOpsModeEnabled, repoURL } = useGitOpsMode(entityType);
 
@@ -50,6 +54,8 @@ const GitOpsModeTooltipWrapper = ({
   const [hasSingleFieldRow, setHasSingleFieldRow] = useState(false);
   // Prefix makes this a valid CSS id selector (lodash uniqueId returns a bare number).
   const wrapperId = useMemo(() => uniqueId(`${baseClass}-`), []);
+  const [isGroupHovered, setIsGroupHovered] = useState(false);
+  const groupHoverTimer = useRef<number>();
 
   useLayoutEffect(() => {
     // Only re-anchor when the wrapped content is a single FormField (its root element is the
@@ -88,12 +94,34 @@ const GitOpsModeTooltipWrapper = ({
   // Anchor to the field's first row so the arrow points at the label regardless of input,
   // help-text, or tooltip-content height. Falls back to the whole wrapper otherwise,
   // preserving the previous centered, hover-anywhere behavior.
-  const anchorSelect = hasSingleFieldRow
-    ? FIRST_ROW_PARTS.map((part) => `#${wrapperId} ${part}`).join(", ")
-    : `#${wrapperId}`;
+  let anchorSelect = `#${wrapperId}`;
+  if (anchorChildSelector) {
+    anchorSelect = anchorChildSelector
+      .split(",")
+      .map((s) => `#${wrapperId} ${s.trim()}`)
+      .join(", ");
+  } else if (hasSingleFieldRow) {
+    anchorSelect = FIRST_ROW_PARTS.map((part) => `#${wrapperId} ${part}`).join(
+      ", "
+    );
+  }
+
+  const onGroupHover = (open: boolean) => {
+    window.clearTimeout(groupHoverTimer.current);
+    groupHoverTimer.current = window.setTimeout(
+      () => setIsGroupHovered(open),
+      250
+    );
+  };
 
   return (
-    <span ref={wrapperRef} id={wrapperId} className={wrapperClass}>
+    <span
+      ref={wrapperRef}
+      id={wrapperId}
+      className={wrapperClass}
+      onMouseEnter={anchorChildSelector ? () => onGroupHover(true) : undefined}
+      onMouseLeave={anchorChildSelector ? () => onGroupHover(false) : undefined}
+    >
       {renderChildren(true)}
       <ReactTooltip5
         className={`${baseClass}__tip-text`}
@@ -108,6 +136,9 @@ const GitOpsModeTooltipWrapper = ({
         clickable
         delayShow={250}
         delayHide={250}
+        isOpen={anchorChildSelector ? isGroupHovered : undefined}
+        // Without this, hovering another matching row re-anchors the tooltip there.
+        imperativeModeOnly={!!anchorChildSelector}
         positionStrategy={fixedPositionStrategy ? "fixed" : "absolute"}
       >
         {tipContent}
