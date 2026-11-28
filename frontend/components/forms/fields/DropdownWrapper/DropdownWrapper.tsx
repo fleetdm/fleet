@@ -139,11 +139,13 @@ export interface IDropdownWrapper {
   menuPlacement?: MenuPlacement;
 }
 
-const getOptionBackgroundColor = (
+export const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  if (state.isFocused) return COLORS["ui-fleet-black-5"];
-  if (state.isSelected) return COLORS["ui-fleet-black-10"];
+  // Per the design system, hovered and selected options share one shade; bold
+  // text marks the selected one. A separate selected shade made it jump when the
+  // pointer entered the menu, since react-select focuses the selected option.
+  if (state.isFocused || state.isSelected) return COLORS["ui-fleet-black-5"];
   return "transparent";
 };
 

@@ -2,7 +2,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 
-import DropdownWrapper, { CustomOptionType } from "./DropdownWrapper";
+import { COLORS } from "styles/var/colors";
+
+import DropdownWrapper, {
+  CustomOptionType,
+  generateCustomDropdownStyles,
+  getOptionBackgroundColor,
+} from "./DropdownWrapper";
 
 const sampleOptions: CustomOptionType[] = [
   {
@@ -149,5 +155,39 @@ describe("DropdownWrapper Component", () => {
     expect(
       container.querySelector(".dropdown-wrapper__disabled-tooltip")
     ).not.toBeInTheDocument();
+  });
+
+  describe("option states", () => {
+    const optionState = (state: { isFocused: boolean; isSelected: boolean }) =>
+      state as Parameters<typeof getOptionBackgroundColor>[0];
+
+    test("hovered and selected options share the design system shade", () => {
+      [
+        { isFocused: true, isSelected: false },
+        { isFocused: false, isSelected: true },
+        { isFocused: true, isSelected: true },
+      ].forEach((state) =>
+        expect(getOptionBackgroundColor(optionState(state))).toBe(
+          COLORS["ui-fleet-black-5"]
+        )
+      );
+    });
+
+    test("leaves other options transparent", () => {
+      expect(
+        getOptionBackgroundColor(
+          optionState({ isFocused: false, isSelected: false })
+        )
+      ).toBe("transparent");
+    });
+
+    test("marks only the selected option in bold", () => {
+      const optionStyles = generateCustomDropdownStyles().option;
+      const fontWeight = (state: { isFocused: boolean; isSelected: boolean }) =>
+        optionStyles?.({}, optionState(state))?.fontWeight;
+
+      expect(fontWeight({ isFocused: false, isSelected: true })).toBe("600");
+      expect(fontWeight({ isFocused: true, isSelected: false })).toBe("normal");
+    });
   });
 });
