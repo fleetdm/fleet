@@ -2174,6 +2174,8 @@ type DeleteUnusedWindowsMDMOneTimeEnrollSecretsFunc func(ctx context.Context, en
 
 type WindowsMDMEnrollSecretPushedFunc func(ctx context.Context, enrollmentID uint, pushLocURI string) (bool, error)
 
+type MDMWindowsEnrollSecretPolicySentSinceDeleteFunc func(ctx context.Context, enrollmentID uint, installLocURI string, policyLocURI string) (bool, error)
+
 type CreateCustomHostVitalFunc func(ctx context.Context, name string) (fleet.CustomHostVital, error)
 
 type ListCustomHostVitalsFunc func(ctx context.Context, opt fleet.ListOptions) (customHostVitals []fleet.CustomHostVital, meta *fleet.PaginationMetadata, count int, err error)
@@ -5887,6 +5889,9 @@ type DataStore struct {
 
 	WindowsMDMEnrollSecretPushedFunc        WindowsMDMEnrollSecretPushedFunc
 	WindowsMDMEnrollSecretPushedFuncInvoked bool
+
+	MDMWindowsEnrollSecretPolicySentSinceDeleteFunc        MDMWindowsEnrollSecretPolicySentSinceDeleteFunc
+	MDMWindowsEnrollSecretPolicySentSinceDeleteFuncInvoked bool
 
 	CreateCustomHostVitalFunc        CreateCustomHostVitalFunc
 	CreateCustomHostVitalFuncInvoked bool
@@ -14146,6 +14151,13 @@ func (s *DataStore) WindowsMDMEnrollSecretPushed(ctx context.Context, enrollment
 	s.WindowsMDMEnrollSecretPushedFuncInvoked = true
 	s.mu.Unlock()
 	return s.WindowsMDMEnrollSecretPushedFunc(ctx, enrollmentID, pushLocURI)
+}
+
+func (s *DataStore) MDMWindowsEnrollSecretPolicySentSinceDelete(ctx context.Context, enrollmentID uint, installLocURI string, policyLocURI string) (bool, error) {
+	s.mu.Lock()
+	s.MDMWindowsEnrollSecretPolicySentSinceDeleteFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsEnrollSecretPolicySentSinceDeleteFunc(ctx, enrollmentID, installLocURI, policyLocURI)
 }
 
 func (s *DataStore) CreateCustomHostVital(ctx context.Context, name string) (fleet.CustomHostVital, error) {

@@ -22,6 +22,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -1796,6 +1797,58 @@ func (s *integrationMDMTestSuite) TestWindowsAzureInitiatedEnrollmentAndMapping(
 
 	// A new management session should still send the install commands for now
 	checkinAndAck(autopilotDevice, true)
+
+	// A secret the fleetd installer can't take goes to the registry ahead of the install. A device that already ingested the
+	// ADMX answers its Add with 418, and that must not make Fleet resend the install.
+	routedSecret := `a"b&<c>ñ\` //nolint:gosec // G101: test value, not a real credential
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: routedSecret}}))
+	cmds, err := autopilotDevice.StartManagementSession()
+	require.NoError(t, err)
+	// The test client groups commands by verb, so the order the device sees is checked in TestEnqueueInstallFleetdMintsOnlyWhenInstalling.
+	installCmds := map[string]fleet.ProtoCmdOperation{}
+	var keys []string
+	for _, c := range cmds {
+		switch c.Cmd.GetTargetURI() {
+		case windowsEnrollSecretADMXInstallURI, windowsEnrollSecretPolicyURI, syncml.FleetdWindowsInstallerGUID:
+			installCmds[c.Verb+" "+c.Cmd.GetTargetURI()] = c
+			keys = append(keys, c.Verb+" "+c.Cmd.GetTargetURI())
+		}
+	}
+	admxAdd := "Add " + windowsEnrollSecretADMXInstallURI
+	policyReplace := "Replace " + windowsEnrollSecretPolicyURI
+	installExec := "Exec " + syncml.FleetdWindowsInstallerGUID
+	require.ElementsMatch(t, []string{admxAdd, policyReplace, "Add " + syncml.FleetdWindowsInstallerGUID, installExec}, keys)
+	var policy struct {
+		Data struct {
+			Value string `xml:"value,attr"`
+		} `xml:"data"`
+	}
+	require.NoError(t, xml.Unmarshal([]byte("<p>"+html.UnescapeString(installCmds[policyReplace].Cmd.Items[0].Data.Content)+"</p>"), &policy))
+	require.Equal(t, routedSecret, policy.Data.Value)
+	require.NotContains(t, installCmds[installExec].Cmd.Items[0].Data.Content, "FLEET_SECRET=")
+
+	msgID, err := autopilotDevice.GetCurrentMsgID()
+	require.NoError(t, err)
+	for key, c := range installCmds {
+		status := "200"
+		if key == admxAdd {
+			status = "418"
+		}
+		autopilotDevice.AppendResponse(fleet.SyncMLCmd{
+			XMLName: xml.Name{Local: fleet.CmdStatus},
+			MsgRef:  &msgID,
+			CmdRef:  &c.Cmd.CmdID.Value,
+			Cmd:     &c.Verb,
+			Data:    new(status),
+			CmdID:   fleet.CmdID{Value: uuid.NewString()},
+		})
+	}
+	cmds, err = autopilotDevice.SendResponse()
+	require.NoError(t, err)
+	for _, c := range cmds {
+		require.NotEqual(t, syncml.FleetdWindowsInstallerGUID, c.Cmd.GetTargetURI(), "the install must not be resent")
+	}
+	require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: enrollSecret}}))
 
 	// Simulate fleetd fetching queries and reporting back the device ID via MDM queries
 	// for the "settings app" device

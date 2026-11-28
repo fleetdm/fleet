@@ -1,12 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -3788,6 +3790,13 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		usedByOrbit bool          // orbit enrolled with a one-time secret minted for the enrollment
 		recorded    bool          // the enrollment already records fleetd as present
 		wantPresent bool
+		// An install sent the secret through the registry since the last delete, so the policy is deleted once fleetd is present
+		// (not in one-time mode).
+		policySent       bool
+		oneTime          bool
+		sentErr          bool
+		deleteFails      bool
+		wantPolicyDelete bool
 	}{
 		{name: "non-UPN enrollment is always present", nonUPN: true, wantPresent: true},
 		{name: "UPN already recorded as present skips the host lookups", recorded: true, seenOffset: -20 * 24 * time.Hour, wantPresent: true},
@@ -3801,6 +3810,12 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 		// ("at/after"). This fails under a strict After() comparison and passes under !Before().
 		{name: "UPN check-in exactly at grace boundary", seenOffset: -fleetdPresenceGracePeriod, wantPresent: true},
 		{name: "UPN check-in beyond grace before enrollment", seenOffset: -2 * fleetdPresenceGracePeriod, wantPresent: false},
+		{name: "secret sent through the registry: policy deleted when fleetd is first seen", seenOffset: time.Minute, policySent: true, wantPresent: true, wantPolicyDelete: true},
+		{name: "secret sent through the registry: nothing deleted before fleetd is seen", seenOffset: -20 * 24 * time.Hour, policySent: true, wantPresent: false},
+		{name: "secret sent through the registry: nothing deleted once presence is recorded", recorded: true, policySent: true, wantPresent: true},
+		{name: "secret sent through the registry with one-time secrets: the profile owns the policy", seenOffset: time.Minute, policySent: true, oneTime: true, wantPresent: true},
+		{name: "secret sent through the registry: presence not recorded when queuing the delete fails", seenOffset: time.Minute, policySent: true, deleteFails: true, wantPresent: true, wantPolicyDelete: true},
+		{name: "presence not recorded when the check for a secret sent through the registry fails", seenOffset: time.Minute, sentErr: true, wantPresent: true},
 	}
 
 	for _, tc := range cases {
@@ -3835,7 +3850,26 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 				assert.Equal(t, hostUUID, linkedHostUUID)
 				return nil
 			}
-			svc := &Service{ds: ds}
+			ds.MDMWindowsEnrollSecretPolicySentSinceDeleteFunc = func(ctx context.Context, enrollmentID uint, installLocURI, policyLocURI string) (bool, error) {
+				assert.EqualValues(t, 17, enrollmentID)
+				assert.Equal(t, syncml.FleetdWindowsInstallerGUID, installLocURI)
+				assert.Equal(t, windowsEnrollSecretPolicyURI, policyLocURI)
+				if tc.sentErr {
+					return false, errors.New("query failed")
+				}
+				return tc.policySent, nil
+			}
+			ds.MDMWindowsInsertCommandForHostsFunc = func(ctx context.Context, deviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+				assert.Equal(t, []string{"device-17"}, deviceIDs)
+				assert.Equal(t, windowsEnrollSecretPolicyURI, cmd.TargetLocURI)
+				assert.Contains(t, string(cmd.RawCommand), "<Delete><CmdID>"+cmd.CommandUUID+"</CmdID>")
+				if tc.deleteFails {
+					return errors.New("insert failed")
+				}
+				return nil
+			}
+			svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
+			svc.config.MDM.WindowsOneTimeEnrollSecrets = tc.oneTime
 
 			var recordedAt *time.Time
 			if tc.recorded {
@@ -3843,6 +3877,7 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			}
 			present, err := svc.isFleetdPresentOnDevice(t.Context(), &fleet.MDMWindowsEnrolledDevice{
 				ID:              17,
+				MDMDeviceID:     "device-17",
 				MDMEnrollUserID: enrollUser,
 				HostUUID:        hostUUID,
 				CreatedAt:       enrolledAt,
@@ -3851,7 +3886,8 @@ func TestIsFleetdPresentOnDevice(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.wantPresent, present)
 			assert.Equal(t, !tc.recorded && !tc.nonUPN && !tc.unlinked, ds.WindowsHostLiteByUUIDFuncInvoked)
-			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
+			assert.Equal(t, tc.wantPresent && !tc.recorded && !tc.nonUPN && !tc.deleteFails && !tc.sentErr, ds.MDMWindowsSetEnrollmentFleetdPresentFuncInvoked)
+			assert.Equal(t, tc.wantPolicyDelete, ds.MDMWindowsInsertCommandForHostsFuncInvoked)
 		})
 	}
 }
@@ -4200,18 +4236,66 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 
 		require.Len(t, *events, 1)
-		require.Contains(t, (*events)[0], globalSecret)
+		require.Contains(t, (*events)[0], `FLEET_SECRET="`+globalSecret+`"`)
+		require.NotContains(t, (*events)[0], windowsEnrollSecretPolicyURI)
 	})
 
-	t.Run("disabled: a global secret XML can't carry is not installed", func(t *testing.T) {
-		serveFleetdMetadata(t, http.StatusOK)
-		svc, ds, events := newService(t, false)
-		ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
-			return []*fleet.EnrollSecret{{Secret: "a\x01b"}}, nil
-		}
-		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
-		require.Empty(t, *events)
-	})
+	for _, tc := range []struct{ name, secret string }{
+		{"double quote", `a"b&<c>`},
+		{"trailing backslash", `ab\`},
+		{"non-ASCII character", "añb"},
+	} {
+		t.Run("disabled: a global secret with a "+tc.name+" goes to the registry ahead of the install", func(t *testing.T) {
+			serveFleetdMetadata(t, http.StatusOK)
+			svc, ds, events := newService(t, false)
+			ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+				return []*fleet.EnrollSecret{{Secret: tc.secret}}, nil
+			}
+			require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+			require.Len(t, *events, 1)
+			raw := strings.TrimPrefix((*events)[0], "insert:")
+			require.NotContains(t, raw, "FLEET_SECRET=")
+
+			// Parsed the way delivery parses it.
+			cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(raw))
+			require.NoError(t, err)
+			var verbs []string
+			for _, cmd := range cmds {
+				verbs = append(verbs, cmd.XMLName.Local)
+			}
+			require.Equal(t, []string{"Add", "Replace", "Add", "Exec"}, verbs)
+			require.Equal(t, windowsEnrollSecretADMXInstallURI, *cmds[0].Items[0].Target)
+			require.Equal(t, windowsEnrollSecretPolicyURI, *cmds[1].Items[0].Target)
+			// Results for these aren't stored, so they must not look like a queued command to the response handler.
+			require.True(t, fleet.IsFleetInternalCmdID(cmds[0].CmdID.Value))
+			require.True(t, fleet.IsFleetInternalCmdID(cmds[1].CmdID.Value))
+
+			// The policy value is escaped twice, as an attribute inside the <Data> text.
+			var policy struct {
+				Data struct {
+					Value string `xml:"value,attr"`
+				} `xml:"data"`
+			}
+			require.NoError(t, xml.Unmarshal([]byte("<p>"+html.UnescapeString(cmds[1].Items[0].Data.Content)+"</p>"), &policy))
+			require.Equal(t, tc.secret, policy.Data.Value)
+		})
+	}
+
+	for _, tc := range []struct{ name, secret string }{
+		{"a character XML can't carry", "a\x01b"},
+		{"a custom variable", `a"$FLEET_SECRET_FOO`},
+		{"a host secret variable", "a${FLEET_HOST_SECRET_ENROLL_SECRET}"},
+	} {
+		t.Run("disabled: a global secret with "+tc.name+" is not installed", func(t *testing.T) {
+			serveFleetdMetadata(t, http.StatusOK)
+			svc, ds, events := newService(t, false)
+			ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+				return []*fleet.EnrollSecret{{Secret: tc.secret}}, nil
+			}
+			require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
+			require.Empty(t, *events)
+		})
+	}
 
 	t.Run("an install skipped for missing metadata leaves no secret behind", func(t *testing.T) {
 		// A minted secret nobody is delivered is still a live credential for the enrollment, so it must not be created ahead of
@@ -4221,6 +4305,44 @@ func TestEnqueueInstallFleetdMintsOnlyWhenInstalling(t *testing.T) {
 		require.NoError(t, svc.enqueueInstallFleetdCommand(t.Context(), device))
 		require.Empty(t, *events)
 	})
+}
+
+func TestProcessIncomingMDMCmdsEnrollSecretStatuses(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{})
+	svcImpl := svc.(validationMiddleware).Service.(*Service)
+	var logs bytes.Buffer
+	svcImpl.logger = slog.New(slog.NewTextHandler(&logs, nil))
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{MDMDeviceID: "device-1", HostUUID: "host-1", EnrolledActivityAt: new(time.Now())}
+
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, _ fleet.EnrichedSyncML, _ []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		return nil, nil
+	}
+	var resendLookup []string
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+		resendLookup = cmdUUIDs
+		return nil, nil
+	}
+
+	status := func(cmdRef, cmd, code string) string {
+		return `<Status><CmdID>s-` + cmdRef + `</CmdID><MsgRef>1</MsgRef><CmdRef>` + cmdRef + `</CmdRef><Cmd>` + cmd + `</Cmd><Data>` + code +
+			`</Data></Status>`
+	}
+	raw := `<SyncML xmlns="SYNCML:SYNCML1.2"><SyncHdr><VerDTD>1.2</VerDTD><VerProto>DM/1.2</VerProto><SessionID>1</SessionID>` +
+		`<MsgID>1</MsgID><Source><LocURI>device-1</LocURI></Source></SyncHdr><SyncBody>` +
+		status(fleetdEnrollSecretCmdIDPrefix+"admx", "Add", "418") + status("profile-add", "Add", "418") +
+		status(fleetdEnrollSecretCmdIDPrefix+"policy", "Replace", "500") + `<Final/></SyncBody></SyncML>`
+	reqMsg := &fleet.SyncML{}
+	require.NoError(t, xml.Unmarshal([]byte(raw), reqMsg))
+	reqMsg.Raw = []byte(raw)
+
+	_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+	require.NoError(t, err)
+	// The device answers 418 to the ADMX ingest on every resent fleetd install. Resending it as a Replace would clone that install.
+	require.Equal(t, []string{"profile-add"}, resendLookup)
+	// A failed secret write is logged, the expected 418 isn't.
+	require.Equal(t, 1, strings.Count(logs.String(), "didn't apply the enroll secret"))
+	require.Contains(t, logs.String(), "cmd_ref="+fleetdEnrollSecretCmdIDPrefix+"policy status=500")
 }
 
 func TestGetPendingMDMCmdsFailsUndeliverableCommands(t *testing.T) {

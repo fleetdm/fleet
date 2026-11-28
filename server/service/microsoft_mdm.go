@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
@@ -1553,8 +1554,13 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 			isPresent = usedByOrbit
 		}
 		if isPresent {
-			// Best effort: if this fails, the next session checks again.
-			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+			// Queued before presence is recorded, so the next session retries it if this fails.
+			if err := svc.deleteRegistryEnrollSecretPolicy(ctx, enrolledDevice); err != nil {
+				svc.logger.ErrorContext(ctx, "windows mdm: failed to queue the enroll secret policy removal", "err", err,
+					"device_id", enrolledDevice.MDMDeviceID)
+				ctxerr.Handle(ctx, err)
+			} else if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+				// Best effort: if this fails, the next session checks again.
 				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
 				ctxerr.Handle(ctx, err)
 			}
@@ -1563,6 +1569,35 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice 
 	}
 
 	return true, nil
+}
+
+// deleteRegistryEnrollSecretPolicy queues the removal of the policy that sent the enroll secret through the registry, once fleetd
+// has it. While the policy exists, Windows writes the value back on every check-in, and fleetd loads it again at each start.
+func (svc *Service) deleteRegistryEnrollSecretPolicy(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) error {
+	// With one-time enroll secrets, the Fleet-managed enroll secret profile owns this policy.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		return nil
+	}
+	// Only an install that sent the secret through the registry leaves the policy behind, and a Delete on a device without it fails
+	// with 404: a device that already had fleetd, or one whose host was deleted and whose fleetd re-enrolled on its own. Read from
+	// the primary: the install was queued or answered recently, and a missed one is never retried.
+	sent, err := svc.ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID,
+		syncml.FleetdWindowsInstallerGUID, windowsEnrollSecretPolicyURI)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking for an enroll secret sent through the registry")
+	}
+	if !sent {
+		return nil
+	}
+	cmdUUID := uuid.NewString()
+	rawDelete := `<Delete><CmdID>` + cmdUUID + `</CmdID><Item><Target><LocURI>` + windowsEnrollSecretPolicyURI +
+		`</LocURI></Target></Item></Delete>`
+	err = svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdUUID,
+		RawCommand:   []byte(rawDelete),
+		TargetLocURI: windowsEnrollSecretPolicyURI,
+	})
+	return ctxerr.Wrap(ctx, err, "insert command to delete the enroll secret policy")
 }
 
 // generateWindowsEUAToken returns a Fleet-signed EUA token for the given Windows
@@ -1611,12 +1646,24 @@ func isXMLChar(r rune) bool {
 	return r == '\t' || r == '\n' || r == '\r' || (r >= 0x20 && r <= 0xD7FF) || (r >= 0xE000 && r <= 0xFFFD) || (r >= 0x10000 && r <= 0x10FFFF)
 }
 
+// msiCantCarrySecret reports whether the fleetd installer would store a different secret than the one passed in FLEET_SECRET:
+// msiexec ends the value at a ", a trailing \ escapes the closing quote, and the installer writes the file in the system code
+// page, which changes non-ASCII characters.
+func msiCantCarrySecret(secret string) bool {
+	return strings.ContainsRune(secret, '"') || strings.HasSuffix(secret, `\`) ||
+		strings.ContainsFunc(secret, func(r rune) bool { return r > unicode.MaxASCII })
+}
+
+// fleetdEnrollSecretCmdIDPrefix marks the commands that write an enroll secret to the registry ahead of the fleetd install.
+const fleetdEnrollSecretCmdIDPrefix = fleet.FleetInternalCmdIDPrefix + "fleetd-enroll-secret-"
+
 // buildFleetdInstallCommand returns the command that installs fleetd on the device, or nil when it cannot be built yet, which
 // the next session retries. With one-time enroll secrets the command carries a placeholder, resolved at delivery.
 func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (*fleet.MDMWindowsCommand, error) {
 	deviceID := enrolledDevice.MDMDeviceID
 
-	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+	enrollSecretArg := ` FLEET_SECRET="` + fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret) + `"`
+	var rawEnrollSecretCmds []byte
 	if !svc.config.MDM.WindowsOneTimeEnrollSecrets {
 		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
 		if err != nil {
@@ -1633,12 +1680,28 @@ func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevic
 			svc.logger.WarnContext(ctx, "the global enroll secret has characters XML can't carry, not installing fleetd")
 			return nil, nil
 		}
-		// The secret is pasted into the command's XML, where an & or < would make it unparseable and so never delivered.
-		var escaped bytes.Buffer
-		if err := xml.EscapeText(&escaped, []byte(secret)); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "escaping enroll secret")
+		// Delivery expands these variables in the whole command, so fleetd would get a different secret.
+		if len(fleet.ContainsPrefixVars(secret, fleet.ServerSecretPrefix)) > 0 ||
+			len(fleet.ContainsPrefixVars(secret, fleet.HostSecretPrefix)) > 0 {
+			svc.logger.WarnContext(ctx, "the global enroll secret references a Fleet variable, not installing fleetd")
+			return nil, nil
 		}
-		enrollSecret = escaped.String()
+		if msiCantCarrySecret(secret) {
+			// Sent ahead of the install instead, to the registry value orbit reads before secret.txt. Without FLEET_SECRET, the
+			// installer keeps its "dummy" default and doesn't write secret.txt.
+			rawEnrollSecretCmds, err = windowsEnrollSecretSyncML(secret, fleetdEnrollSecretCmdIDPrefix)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "building enroll secret commands")
+			}
+			enrollSecretArg = ""
+		} else {
+			// The secret is pasted into the command's XML, where an & or < would make it unparseable and so never delivered.
+			var escaped bytes.Buffer
+			if err := xml.EscapeText(&escaped, []byte(secret)); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "escaping enroll secret")
+			}
+			enrollSecretArg = ` FLEET_SECRET="` + escaped.String() + `"`
+		}
 	}
 
 	// it's okay to skip the installation if we're not able to retrieve the
@@ -1697,7 +1760,7 @@ func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevic
 					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
-					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + enrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `"` + enrollSecretArg + ` ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
 					<TimeOut>10</TimeOut>
 					<RetryCount>1</RetryCount>
 					<RetryInterval>5</RetryInterval>
@@ -1715,8 +1778,9 @@ func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevic
 
 	// Deliver the Add and Exec as a SINGLE command so they ride in one SyncML body with Add textually before Exec. As
 	// two separate queued commands they can be reordered when they are applied in the same second, we must manually
-	// guarantee the ordering.
-	rawCombinedCmd := slices.Concat(rawAddCmd, rawExecCmd)
+	// guarantee the ordering. An enroll secret sent through the registry goes first, so it is in place before the installer
+	// starts orbit.
+	rawCombinedCmd := slices.Concat(rawEnrollSecretCmds, rawAddCmd, rawExecCmd)
 	fleetdInstallCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
 		RawCommand:   rawCombinedCmd,
@@ -2232,7 +2296,17 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
+		// Results for these Fleet-internal commands aren't saved, so a failure to write the enroll secret is only visible here. Without
+		// it, fleetd installs but can't enroll.
+		if protoCMD.Verb == mdm_types.CmdStatus && protoCMD.Cmd.Data != nil && protoCMD.Cmd.CmdRef != nil &&
+			strings.HasPrefix(*protoCMD.Cmd.CmdRef, fleetdEnrollSecretCmdIDPrefix) &&
+			!strings.HasPrefix(*protoCMD.Cmd.Data, "2") && *protoCMD.Cmd.Data != "418" {
+			svc.logger.WarnContext(ctx, "windows mdm: the device didn't apply the enroll secret for the fleetd install", "device_id", deviceID,
+				"cmd_ref", *protoCMD.Cmd.CmdRef, "status", *protoCMD.Cmd.Data)
+		}
+		// An already ingested enroll secret ADMX is fine as is, and resending it would clone the whole fleetd install.
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil &&
+			!strings.HasPrefix(*protoCMD.Cmd.CmdRef, fleetdEnrollSecretCmdIDPrefix) {
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
 			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)

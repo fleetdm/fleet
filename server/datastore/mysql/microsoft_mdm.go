@@ -479,6 +479,32 @@ func (ds *Datastore) MDMWindowsSetEnrollmentFleetdPresent(ctx context.Context, e
 	return nil
 }
 
+// MDMWindowsEnrollSecretPolicySentSinceDelete implements fleet.Datastore. An install still in the queue counts, because the session
+// that first sees fleetd can carry the install's result, which is saved after the session is handled. One the device rejected, or
+// that Fleet failed as undeliverable, doesn't. Commands are ordered by id: created_at has only second precision.
+func (ds *Datastore) MDMWindowsEnrollSecretPolicySentSinceDelete(ctx context.Context, enrollmentID uint, installLocURI, policyLocURI string) (bool, error) {
+	var sent bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &sent, `
+		SELECT EXISTS (
+			SELECT 1 FROM windows_mdm_commands c JOIN (
+				SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ? AND acked_at IS NULL
+				UNION
+				SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ? AND status_code LIKE '2%'
+			) ec ON ec.command_uuid = c.command_uuid
+			WHERE c.target_loc_uri = ? AND LOCATE(?, c.raw_command) > 0
+				AND c.id > (
+					SELECT COALESCE(MAX(d.id), 0) FROM windows_mdm_commands d JOIN (
+						SELECT command_uuid FROM windows_mdm_command_queue WHERE enrollment_id = ?
+						UNION
+						SELECT command_uuid FROM windows_mdm_command_results WHERE enrollment_id = ?
+					) ed ON ed.command_uuid = d.command_uuid
+					WHERE d.target_loc_uri = ?))`,
+		enrollmentID, enrollmentID, installLocURI, policyLocURI, enrollmentID, enrollmentID, policyLocURI); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check windows mdm enroll secret policy sent")
+	}
+	return sent, nil
+}
+
 // MDMWindowsGetUnlinkedEnrolledDeviceWithHardwareSerial returns the unlinked (host_uuid = "") Windows MDM enrollment whose
 // device-reported SMBIOS serial matches. If more than one unlinked enrollment shares the serial the caller cannot pick
 // safely, so we return NotFound rather than guess, matching WindowsHostLiteByHardwareSerial.

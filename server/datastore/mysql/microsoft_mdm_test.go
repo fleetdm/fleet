@@ -79,6 +79,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestWindowsMDMManagedSCEPCertificates", testWindowsMDMManagedSCEPCertificates},
 		{"TestGetWindowsMDMCommandsForResending", testGetWindowsMDMCommandsForResending},
 		{"TestResendWindowsMDMCommand", testResendWindowsMDMCommand},
+		{"TestMDMWindowsEnrollSecretPolicySentSinceDelete", testMDMWindowsEnrollSecretPolicySentSinceDelete},
 		{"TestDeleteProfileLocURIProtection", testDeleteProfileLocURIProtection},
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestWindowsMDMProfilePriorContentRetention", testWindowsMDMProfilePriorContentRetention},
@@ -7138,6 +7139,84 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 	assert.Equal(t, string(fleet.MDMDeliveryPending), status, "Host profile status should be reset to pending on resend")
 	require.True(t, detail.Valid, "Host profile detail should be cleared on resend")
 	assert.Empty(t, detail.String, "Host profile detail should be cleared on resend")
+}
+
+func testMDMWindowsEnrollSecretPolicySentSinceDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const (
+		installURI = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/fleetd/DownloadInstall"
+		policyURI  = "./Device/Vendor/MSFT/Policy/Config/Area~Policy~category/EnrollSecret"
+	)
+	device := insertWindowsEnrollment(t, ds, "policy-sent", "")
+	other := insertWindowsEnrollment(t, ds, "policy-other", "")
+
+	queue := func(d *fleet.MDMWindowsEnrolledDevice, target, raw string) string {
+		t.Helper()
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{d.MDMDeviceID}, &fleet.MDMWindowsCommand{
+			CommandUUID: cmdUUID, RawCommand: []byte(raw), TargetLocURI: target,
+		}))
+		return cmdUUID
+	}
+	// answerWith records a result for a command and drops its queue row, as happens to acked commands eventually.
+	answerWith := func(d *fleet.MDMWindowsEnrolledDevice, cmdUUID, statusCode string) {
+		t.Helper()
+		compressed, err := compressWindowsMDMResponse([]byte("resp"))
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response_gz) VALUES (?, ?)`, d.ID, compressed)
+			if err != nil {
+				return err
+			}
+			responseID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			if _, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code)
+				VALUES (?, ?, '', ?, ?)`, d.ID, cmdUUID, responseID, statusCode); err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?`, d.ID, cmdUUID)
+			return err
+		})
+	}
+	answer := func(d *fleet.MDMWindowsEnrolledDevice, cmdUUID string) { answerWith(d, cmdUUID, "200") }
+	sent := func(d *fleet.MDMWindowsEnrolledDevice) bool {
+		t.Helper()
+		got, err := ds.MDMWindowsEnrollSecretPolicySentSinceDelete(ctx, d.ID, installURI, policyURI)
+		require.NoError(t, err)
+		return got
+	}
+	routedInstall := func(policy string) string {
+		return `<Add>ADMX</Add><Replace><Item><Target><LocURI>` + policy + `</LocURI></Target></Item></Replace><Exec>MSI</Exec>`
+	}
+
+	require.False(t, sent(device), "nothing sent")
+	answer(device, queue(device, installURI, `<Add>MSI</Add><Exec>MSI</Exec>`))
+	require.False(t, sent(device), "an install without the policy")
+	answer(device, queue(device, installURI, routedInstall("./Device/Vendor/MSFT/Policy/Config/Other~Policy~category/Value")))
+	require.False(t, sent(device), "an install with another policy")
+	answer(other, queue(other, installURI, routedInstall(policyURI)))
+	require.False(t, sent(device), "another enrollment's install")
+	require.True(t, sent(other))
+
+	answerWith(device, queue(device, installURI, routedInstall(policyURI)), "500")
+	require.False(t, sent(device), "an install the device rejected")
+	require.NoError(t, ds.MDMWindowsFailUndeliverableCommand(ctx, device, queue(device, installURI, routedInstall(policyURI)), "unparseable"))
+	require.False(t, sent(device), "an install Fleet failed as undeliverable")
+
+	// The session that first sees fleetd can carry the install's result, which is saved after the session is handled.
+	installUUID := queue(device, installURI, routedInstall(policyURI))
+	require.True(t, sent(device), "an install still in the queue")
+	answer(device, installUUID)
+	require.True(t, sent(device))
+
+	queue(device, policyURI, `<Delete><Item><Target><LocURI>`+policyURI+`</LocURI></Target></Item></Delete>`)
+	require.False(t, sent(device), "the policy delete is queued")
+	require.True(t, sent(other), "a delete for one enrollment doesn't count for another")
+
+	answer(device, queue(device, installURI, routedInstall(policyURI)))
+	require.True(t, sent(device), "sent again after the delete")
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {

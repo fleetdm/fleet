@@ -71,19 +71,32 @@ func windowsPolicyData(elementID, value string) (string, error) {
 
 // windowsEnrollSecretProfileSyncML builds the Fleet-managed profile that carries a one-time enroll secret to the registry.
 func windowsEnrollSecretProfileSyncML() ([]byte, error) {
+	// The placeholder survives escaping unchanged, and the token it expands to at send time is URL-safe base64, so nothing in
+	// it needs escaping either.
+	return windowsEnrollSecretSyncML(fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret), "")
+}
+
+// windowsEnrollSecretSyncML builds the ADMX ingest and the policy that write value to the registry value orbit reads. With a
+// cmdIDPrefix the two commands carry their own CmdIDs, for sending inline; a profile gets its CmdIDs when it is queued.
+func windowsEnrollSecretSyncML(value, cmdIDPrefix string) ([]byte, error) {
 	var admx bytes.Buffer
 	if err := xml.EscapeText(&admx, []byte(windowsEnrollSecretADMX)); err != nil {
 		return nil, err
 	}
 
-	// The placeholder survives escaping unchanged, and the token it expands to at send time is URL-safe base64, so nothing in
-	// it needs escaping either.
-	value, err := windowsPolicyData("EnrollSecret_Value", fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret))
+	policy, err := windowsPolicyData("EnrollSecret_Value", value)
 	if err != nil {
 		return nil, err
 	}
 
-	return []byte(`<Add>
+	cmdID := func(suffix string) string {
+		if cmdIDPrefix == "" {
+			return ""
+		}
+		return "\n  <CmdID>" + cmdIDPrefix + suffix + "</CmdID>"
+	}
+
+	return []byte(`<Add>` + cmdID("admx") + `
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -95,7 +108,7 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
     <Data>` + admx.String() + `</Data>
   </Item>
 </Add>
-<Replace>
+<Replace>` + cmdID("policy") + `
   <Item>
     <Meta>
       <Format xmlns="syncml:metinf">chr</Format>
@@ -104,7 +117,7 @@ func windowsEnrollSecretProfileSyncML() ([]byte, error) {
     <Target>
       <LocURI>` + windowsEnrollSecretPolicyURI + `</LocURI>
     </Target>
-    <Data>` + value + `</Data>
+    <Data>` + policy + `</Data>
   </Item>
 </Replace>`), nil
 }
