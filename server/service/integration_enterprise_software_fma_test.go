@@ -381,8 +381,10 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	})
 
 	// Should return an error; SHAs don't match up
-	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusInternalServerError)
-	require.Contains(t, extractServerErrorText(r.Body), "mismatch in maintained app SHA256 hash")
+	r := s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 2}, http.StatusUnprocessableEntity)
+	errText := extractServerErrorText(r.Body)
+	require.Contains(t, errText, "/badinstaller")
+	require.Contains(t, errText, "doesn't match the SHA-256 checksum in Fleet's catalog")
 
 	// Should timeout
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT", "1s")

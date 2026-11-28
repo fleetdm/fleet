@@ -100,7 +100,10 @@ func (svc *Service) AddFleetMaintainedApp(
 	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {
 		if gotHash != app.SHA256 {
-			return 0, ctxerr.New(ctx, "mismatch in maintained app SHA256 hash")
+			return 0, fleet.NewInvalidArgumentError("fleet_maintained_app.url", fmt.Sprintf(
+				"The installer for %q downloaded from %s doesn't match the SHA-256 checksum in Fleet's catalog. Try adding the app again after its catalog entry is updated.",
+				app.Name, app.InstallerURL,
+			))
 		}
 	} else { // otherwise set the app hash to what we downloaded so storage writes correctly
 		app.SHA256 = gotHash
