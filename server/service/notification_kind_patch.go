@@ -54,41 +54,62 @@ func shouldNotificationBeReminder(patchNotification *fleet.PatchNotification, no
 	return false
 }
 
-func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, hostID uint, notificationUUID string) (failureMessage string) {
+// setPatchNotificationPayloadForDisplay readies a notification for the notice its script is about to
+// show. nothingToShow means every app was already updated: the caller records failureMessage as the
+// script's result, so the script never runs, then calls failPatchNotificationWithNothingToShow.
+func (svc *Service) setPatchNotificationPayloadForDisplay(ctx context.Context, hostID uint, notificationUUID string) (failureMessage string, nothingToShow bool) {
 	patchNotification, err := svc.ds.GetPatchNotification(ctx, notificationUUID)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to get the patch notification a script belongs to", "notification_uuid", notificationUUID, "err", err)
-		return "Fleet couldn't load the notification this script belongs to."
+		return "Fleet couldn't load the notification this script belongs to.", false
 	}
 	if patchNotification == nil {
-		return ""
+		return "", false
 	}
 
 	payload := patchNotificationFirstNoticePayload
 	if shouldNotificationBeReminder(patchNotification, time.Now().UTC()) {
 		payload = patchNotificationReminderPayload
-	} else if err := svc.prunePatchNotificationApps(ctx, hostID, notificationUUID); err != nil {
-		svc.logger.ErrorContext(ctx, "failed to prune the apps a patch notification no longer needs to update", "notification_uuid", notificationUUID, "err", err)
-		return "Fleet couldn't remove the apps that are already updated from the notification."
+	} else {
+		remaining, err := svc.prunePatchNotificationApps(ctx, hostID, notificationUUID)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to prune the apps a patch notification no longer needs to update", "notification_uuid", notificationUUID, "err", err)
+			return "Fleet couldn't remove the apps that are already updated from the notification.", false
+		}
+		// Running the script would open a toast that can't render and exit 31, which reads as a
+		// failed notification for apps that were already updated.
+		if remaining == 0 {
+			return "Every app in the notification is already updated, so Fleet didn't show it.", true
+		}
 	}
 	err = svc.notificationsSvc.SetNotificationPayload(ctx, notificationUUID, payload)
 	if err != nil {
 		svc.logger.ErrorContext(ctx, "failed to set the patch notification payload", "notification_uuid", notificationUUID, "err", err)
-		return "Fleet couldn't record which notice this script shows."
+		return "Fleet couldn't record which notice this script shows.", false
 	}
-	return ""
+	return "", false
+}
+
+// failPatchNotificationWithNothingToShow runs after the script's stand-in result is recorded, since
+// recording it puts the notification back in the queue under the stand-in exit code's reason.
+func (svc *Service) failPatchNotificationWithNothingToShow(ctx context.Context, notificationUUID string) error {
+	err := svc.notificationsSvc.SetNotificationStatus(ctx, notificationUUID,
+		notifications_api.EndUserNotificationFailed,
+		new(notifications_api.EndUserNotificationReasonNothingToShow),
+		[]string{notifications_api.EndUserNotificationPending, notifications_api.EndUserNotificationDispatched})
+	return ctxerr.Wrap(ctx, err, "fail patch notification with nothing to show")
 }
 
 // A notification can wait days for its 1 hour notice, so remove apps the host updated in the
-// meantime before the notice names them. If that leaves no apps, renderView fails the notification.
-func (svc *Service) prunePatchNotificationApps(ctx context.Context, hostID uint, notificationUUID string) error {
+// meantime before the notice names them. Returns how many apps are left.
+func (svc *Service) prunePatchNotificationApps(ctx context.Context, hostID uint, notificationUUID string) (int, error) {
 	appsByNotification, err := svc.ds.ListPatchNotificationAppsForNotifications(ctx, []string{notificationUUID})
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list patch notification apps")
+		return 0, ctxerr.Wrap(ctx, err, "list patch notification apps")
 	}
 	apps := appsByNotification[notificationUUID]
 	if len(apps) == 0 {
-		return nil
+		return 0, nil
 	}
 
 	softwareTitleIDs := make([]uint, 0, len(apps))
@@ -97,18 +118,20 @@ func (svc *Service) prunePatchNotificationApps(ctx context.Context, hostID uint,
 	}
 	versions, err := svc.ds.ListSoftwareTitleVersionsForHosts(ctx, []uint{hostID}, softwareTitleIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list host software versions")
+		return 0, ctxerr.Wrap(ctx, err, "list host software versions")
 	}
 	installsByTitle, err := svc.ds.ListLastTitleInstallDataForHosts(ctx, []uint{hostID}, softwareTitleIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list host last title install data")
+		return 0, ctxerr.Wrap(ctx, err, "list host last title install data")
 	}
 
-	_, updatedTitleIDs, _ := splitUpdatedPatchNotificationApps(hostID, apps, installedVersionsByTitle(versions), installsByTitle)
-	if len(updatedTitleIDs) == 0 {
-		return nil
+	remaining, updatedTitleIDs, _ := splitUpdatedPatchNotificationApps(hostID, apps, installedVersionsByTitle(versions), installsByTitle)
+	if len(updatedTitleIDs) > 0 {
+		if err := svc.ds.DeletePatchNotificationApps(ctx, notificationUUID, updatedTitleIDs); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "delete patch notification apps that no longer need updating")
+		}
 	}
-	return ctxerr.Wrap(ctx, svc.ds.DeletePatchNotificationApps(ctx, notificationUUID, updatedTitleIDs), "delete patch notification apps that no longer need updating")
+	return len(remaining), nil
 }
 
 func patchNotificationIsReminder(payload json.RawMessage) (bool, error) {
@@ -315,7 +338,7 @@ func (svc *Service) createPatchNotificationForEndUser(ctx context.Context, host 
 	// The app row goes last because it is what stops a later skip starting over: once it exists,
 	// PatchNotificationExistsForApp returns true and this function returns early. Anything written
 	// after it that failed would stay missing for the life of the notification. A notification left
-	// with no apps is safe by comparison, since Render fails it and the policy opens a new one.
+	// with no apps is safe by comparison, since it is failed before display and the policy opens a new one.
 	if err := svc.ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
 		PolicyID:            install.PolicyID,
 		SoftwareTitleID:     *install.SoftwareTitleID,
@@ -846,6 +869,11 @@ func (k *patchNotificationKind) OnOutcome(ctx context.Context, notification *not
 	apps, err := k.ds.ListPatchNotificationApps(ctx, notification.UUID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list patch notification apps")
+	}
+	// With no apps left there was nothing to tell the end user, so a failed attempt names nothing
+	// and only adds noise to the feed.
+	if !outcome.Displayed && len(apps) == 0 {
+		return nil
 	}
 
 	host, err := k.ds.HostLiteByID(ctx, notification.HostID)

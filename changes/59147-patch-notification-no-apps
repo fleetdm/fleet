@@ -1,0 +1,2 @@
+- Fixed a "notify before patching" notification failing with exit code 31 when every app in it was already updated. Fleet now closes the notification without showing it, and no longer adds a "failed to notify" activity that names no apps.
+- When Fleet Desktop can't load a notification, the script output now includes the HTTP status.
