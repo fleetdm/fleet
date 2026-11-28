@@ -166,9 +166,12 @@ func TestDirectoryListGroups(t *testing.T) {
 			members: map[string][]*directory.Member{
 				"g1": {
 					{Id: "u1", Type: "USER"},
-					{Id: "u2"},                // empty type treated as user
-					{Id: "g9", Type: "GROUP"}, // nested group skipped
-					{Id: ""},                  // skipped
+					{Id: "u2"},                    // empty type treated as user
+					{Id: "g9", Type: "GROUP"},     // nested group
+					{Id: "c1", Type: "CUSTOMER"},  // whole-domain membership, skipped
+					{Id: "x1", Type: "SOMETHING"}, // unknown type, skipped
+					{Id: "g1", Type: "GROUP"},     // self-reference, skipped
+					{Id: ""},                      // skipped
 				},
 				"g2": {{Id: "u3", Type: "USER"}},
 			},
@@ -181,9 +184,30 @@ func TestDirectoryListGroups(t *testing.T) {
 	assert.Equal(t, "g1", groups[0].ExternalID)
 	assert.Equal(t, "Engineering", groups[0].DisplayName)
 	assert.Equal(t, []string{"u1", "u2"}, groups[0].MemberExternalIDs)
+	assert.Equal(t, []string{"g9"}, groups[0].ChildGroupExternalIDs)
 
 	assert.Equal(t, "ops@example.com", groups[1].DisplayName, "falls back to email when no name")
 	assert.Equal(t, []string{"u3"}, groups[1].MemberExternalIDs)
+	assert.Empty(t, groups[1].ChildGroupExternalIDs)
+}
+
+func TestDirectoryListGroupsNestedEdgesCountTowardMembershipLimit(t *testing.T) {
+	dir := &Directory{
+		domain: "example.com",
+		limits: Limits{MaxGroupMemberships: 2},
+		api: &fakeAPI{
+			groups: []*directory.Group{{Id: "g1", Name: "Engineering"}},
+			members: map[string][]*directory.Member{
+				"g1": {
+					{Id: "u1", Type: "USER"},
+					{Id: "g2", Type: "GROUP"},
+					{Id: "g3", Type: "GROUP"},
+				},
+			},
+		},
+	}
+	_, err := dir.ListGroups(t.Context())
+	require.ErrorContains(t, err, maxGroupMembershipsSetting)
 }
 
 func TestDirectoryListGroupsMemberError(t *testing.T) {
