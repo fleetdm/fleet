@@ -1,0 +1,1 @@
+- Reduced database lock contention when Fleet cleans up stored report results while hosts are writing new results.
