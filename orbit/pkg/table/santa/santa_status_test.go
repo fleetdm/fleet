@@ -44,6 +44,54 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
 }
 
+func TestGenerateStatus_SyncEnabled(t *testing.T) {
+	t.Cleanup(func() { execCommandContext = exec.CommandContext })
+
+	execCommandContext = fakeExecCommandContext(t, `{
+	"sync" : {
+		"enabled" : true,
+		"server" : "https://sync.example.com/santa",
+		"push_notifications" : "NPS Push Service",
+		"push_server" : "push.example.com",
+		"full_sync_interval_seconds" : 600,
+		"push_notifications_full_sync_interval_seconds" : 14400
+	},
+	"metrics" : {
+		"enabled" : true,
+		"server" : "https://metrics.example.com/santa",
+		"export_interval_seconds" : 30
+	}
+}`)
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	row := rows[0]
+	require.Equal(t, "1", row["sync_enabled"])
+	require.Equal(t, "600", row["sync_full_sync_interval_seconds"])
+	require.Equal(t, "14400", row["sync_push_notifications_full_sync_interval_seconds"])
+	require.Equal(t, "push.example.com", row["sync_push_server"])
+	require.Equal(t, "https://metrics.example.com/santa", row["metrics_server"])
+
+	// Without push notifications, santactl reports push_server as "null" and omits
+	// the push notifications interval.
+	execCommandContext = fakeExecCommandContext(t, `{
+	"sync" : {
+		"enabled" : true,
+		"server" : "https://sync.example.com/santa",
+		"push_notifications" : "Disabled",
+		"push_server" : "null",
+		"full_sync_interval_seconds" : 600
+	}
+}`)
+	rows, err = GenerateStatus(t.Context(), table.QueryContext{})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	row = rows[0]
+	require.Equal(t, "600", row["sync_full_sync_interval_seconds"])
+	require.Equal(t, "0", row["sync_push_notifications_full_sync_interval_seconds"])
+	require.Equal(t, "null", row["sync_push_server"])
+}
+
 // TestGenerateStatus_RunsBundleBinary guards against running santactl from a
 // possibly user-writable directory such as /usr/local/bin, since osquery runs
 // it as root.
@@ -109,6 +157,7 @@ func TestStatusColumns_Contract(t *testing.T) {
 	for _, name := range []string{
 		"daemon_reachable", "error", "file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
 		"sync_enabled", "metrics_enabled", "events_pending_upload",
+		"sync_full_sync_interval_seconds", "sync_push_notifications_full_sync_interval_seconds", "sync_push_server",
 	} {
 		if _, ok := names[name]; !ok {
 			t.Fatalf("missing column %q", name)
