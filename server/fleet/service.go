@@ -775,6 +775,10 @@ type Service interface {
 	UpdateCertificateStatus(ctx context.Context, update *CertificateStatusUpdate) error
 	ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error
 
+	// SetAndroidAgentVitals records vitals the Fleet Android agent collects on
+	// the device itself, for the Android host authenticated by its orbit node key.
+	SetAndroidAgentVitals(ctx context.Context, vitals AndroidAgentVitals) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// TranslatorService
 

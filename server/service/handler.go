@@ -918,6 +918,7 @@ func attachFleetAPIRoutes(r *endpointer.Router, svc fleet.Service, config config
 	androidEndpoints := androidAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)
 	androidEndpoints.GET("/api/fleetd/certificates/{id:[0-9]+}", getDeviceCertificateTemplateEndpoint, getDeviceCertificateTemplateRequest{})
 	androidEndpoints.PUT("/api/fleetd/certificates/{id:[0-9]+}/status", updateCertificateStatusEndpoint, updateCertificateStatusRequest{})
+	androidEndpoints.PUT("/api/fleetd/vitals", setAndroidAgentVitalsEndpoint, setAndroidAgentVitalsRequest{})
 
 	// orbit authenticated endpoints
 	oe := newOrbitAuthenticatedEndpointer(svc, logger, opts, r, apiVersions...)

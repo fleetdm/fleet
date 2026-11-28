@@ -549,6 +549,12 @@ type Host struct {
 	// for every other platform, or when a given field wasn't reported by a
 	// particular status report.
 	HostMDMAndroidDeviceVitals
+
+	// HostAndroidAgentVitals holds the vitals the Fleet Android agent reports
+	// itself, flattened like HostMDMAndroidDeviceVitals and loaded by the same
+	// query. db:"-" keeps sqlx from mapping its db-tagged fields onto host
+	// queries.
+	HostAndroidAgentVitals `db:"-"`
 }
 
 func (h *Host) EffectiveTeamID() uint {

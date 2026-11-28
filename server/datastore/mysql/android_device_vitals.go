@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -137,6 +139,31 @@ func (ds *Datastore) SetOrUpdateHostMDMAndroidDeviceVitals(ctx context.Context, 
 	})
 }
 
+// SetHostAndroidAgentVitals upserts only the vitals present in vitals, so a
+// report that leaves one out keeps its previous value. The column names come
+// from fleet.AndroidAgentVitals' struct tags, never from the request.
+func (ds *Datastore) SetHostAndroidAgentVitals(ctx context.Context, hostUUID string, vitals fleet.AndroidAgentVitals) error {
+	columns, values := vitals.ReportedColumns()
+	if len(columns) == 0 {
+		return ctxerr.New(ctx, "no android agent vitals to set")
+	}
+
+	updates := make([]string, 0, len(columns)+1)
+	updates = append(updates, "reported_at = VALUES(reported_at)")
+	for _, column := range columns {
+		updates = append(updates, column+" = VALUES("+column+")")
+	}
+	stmt := `INSERT INTO host_android_agent_vitals (host_uuid, reported_at, ` + strings.Join(columns, ", ") + `)
+		VALUES (?, NOW(6)` + strings.Repeat(", ?", len(columns)) + `)
+		ON DUPLICATE KEY UPDATE ` + strings.Join(updates, ", ")
+
+	args := append([]any{hostUUID}, values...)
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "set host android agent vitals")
+	}
+	return nil
+}
+
 const androidDeviceVitalsSelectStmt = `
 	SELECT
 		host_uuid, adb_enabled, passcode_protected, play_protect_enabled, encryption_type,
@@ -181,5 +208,26 @@ func (ds *Datastore) LoadHostMDMAndroidDeviceVitals(ctx context.Context, host *f
 		return ctxerr.Wrap(ctx, err, "get host mdm android device vitals")
 	}
 
+	return ds.loadHostAndroidAgentVitals(ctx, host)
+}
+
+var androidAgentVitalsSelectStmt = `SELECT reported_at, ` + strings.Join(fleet.AndroidAgentVitalColumns(), ", ") + `
+	FROM host_android_agent_vitals WHERE host_uuid = ?`
+
+func (ds *Datastore) loadHostAndroidAgentVitals(ctx context.Context, host *fleet.Host) error {
+	var row struct {
+		fleet.AndroidAgentVitals
+		ReportedAt time.Time `db:"reported_at"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, androidAgentVitalsSelectStmt, host.UUID)
+	switch {
+	case err == nil:
+		host.AndroidAgentVitals = row.AndroidAgentVitals
+		host.HostAndroidAgentVitals.ReportedAt = &row.ReportedAt
+	case errors.Is(err, sql.ErrNoRows):
+		// the agent hasn't reported yet; leave fields nil.
+	default:
+		return ctxerr.Wrap(ctx, err, "get host android agent vitals")
+	}
 	return nil
 }

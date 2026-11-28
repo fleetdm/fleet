@@ -389,6 +389,34 @@ object ApiClient : CertificateApiClient {
         )
     }
 
+    suspend fun reportVitals(vitals: DeviceVitals): Result<Unit> = withReenrollOnUnauthorized {
+        makeRequest(
+            endpoint = "/api/fleetd/vitals",
+            method = "PUT",
+            body = vitals,
+            bodySerializer = DeviceVitals.serializer(),
+            responseSerializer = ReportVitalsResponse.serializer(),
+        ).fold(
+            onSuccess = { response ->
+                if (response.error != null) {
+                    FleetLog.e(TAG, "failed to report vitals: ${response.error}")
+                    Result.failure(Exception(response.error))
+                } else {
+                    Log.i(TAG, "reported vitals: $vitals")
+                    Result.success(Unit)
+                }
+            },
+            onFailure = { throwable ->
+                if (throwable is NotFoundException) {
+                    Log.i(TAG, "server doesn't accept vitals reports yet")
+                } else {
+                    FleetLog.e(TAG, "failed to report vitals: ${throwable.message}")
+                }
+                Result.failure(throwable)
+            },
+        )
+    }
+
     private suspend fun getEnrollmentCredentials(): EnrollmentCredentials? {
         val prefs = dataStore.data.first()
         val enrollSecret = prefs[ENROLL_SECRET]
@@ -578,6 +606,12 @@ enum class UpdateCertificateStatusOperation {
 
 @Serializable
 private data class UpdateCertificateStatusResponse(
+    @SerialName("error")
+    val error: String? = null,
+)
+
+@Serializable
+private data class ReportVitalsResponse(
     @SerialName("error")
     val error: String? = null,
 )

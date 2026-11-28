@@ -433,6 +433,8 @@ type UpdateCertificateStatusFunc func(ctx context.Context, update *fleet.Certifi
 
 type ResendHostCertificateTemplateFunc func(ctx context.Context, hostID uint, templateID uint) error
 
+type SetAndroidAgentVitalsFunc func(ctx context.Context, vitals fleet.AndroidAgentVitals) error
+
 type TranslateFunc func(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error)
 
 type NewGlobalPolicyFunc func(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error)
@@ -1619,6 +1621,9 @@ type Service struct {
 
 	ResendHostCertificateTemplateFunc        ResendHostCertificateTemplateFunc
 	ResendHostCertificateTemplateFuncInvoked bool
+
+	SetAndroidAgentVitalsFunc        SetAndroidAgentVitalsFunc
+	SetAndroidAgentVitalsFuncInvoked bool
 
 	TranslateFunc        TranslateFunc
 	TranslateFuncInvoked bool
@@ -3915,6 +3920,13 @@ func (s *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint
 	s.ResendHostCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
 	return s.ResendHostCertificateTemplateFunc(ctx, hostID, templateID)
+}
+
+func (s *Service) SetAndroidAgentVitals(ctx context.Context, vitals fleet.AndroidAgentVitals) error {
+	s.mu.Lock()
+	s.SetAndroidAgentVitalsFuncInvoked = true
+	s.mu.Unlock()
+	return s.SetAndroidAgentVitalsFunc(ctx, vitals)
 }
 
 func (s *Service) Translate(ctx context.Context, payloads []fleet.TranslatePayload) ([]fleet.TranslatePayload, error) {

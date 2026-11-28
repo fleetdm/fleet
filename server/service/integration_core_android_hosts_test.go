@@ -10,6 +10,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -233,4 +234,113 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 
 func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
 	return createAndroidHostForTest(t, ds, teamID, false)
+}
+
+func (s *integrationTestSuite) TestAndroidAgentVitals() {
+	t := s.T()
+
+	androidHost := createOrbitEnrolledHost(t, "android", "-roaming", s.ds)
+	otherAndroidHost := createOrbitEnrolledHost(t, "android", "-not-reporting", s.ds)
+	macHost := createOrbitEnrolledHost(t, "darwin", "-mac", s.ds)
+
+	putVitals := func(orbitNodeKey string, body any, wantStatus int) {
+		resp := s.DoRawWithHeaders("PUT", "/api/fleetd/vitals", jsonMustMarshal(t, body), wantStatus, map[string]string{
+			"Authorization": "Node key " + orbitNodeKey,
+		})
+		require.NoError(t, resp.Body.Close())
+	}
+	getHost := func(hostID uint) *fleet.HostDetailResponse {
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host)
+		return hostResp.Host
+	}
+
+	t.Run("no value before the agent reports", func(t *testing.T) {
+		host := getHost(androidHost.ID)
+		require.Nil(t, host.Roaming)
+		require.Nil(t, host.HostAndroidAgentVitals.ReportedAt)
+
+		rawResp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
+		var raw map[string]map[string]any
+		require.NoError(t, json.NewDecoder(rawResp.Body).Decode(&raw))
+		require.NoError(t, rawResp.Body.Close())
+		require.NotContains(t, raw["host"], "roaming", "roaming is omitted until reported")
+		require.NotContains(t, raw["host"], "agent_vitals_reported_at")
+	})
+
+	t.Run("agent reports roaming", func(t *testing.T) {
+		putVitals(*androidHost.OrbitNodeKey, map[string]any{"roaming": true}, http.StatusOK)
+		host := getHost(androidHost.ID)
+		require.NotNil(t, host.Roaming)
+		require.True(t, *host.Roaming)
+		require.NotNil(t, host.HostAndroidAgentVitals.ReportedAt)
+
+		var identifierResp getHostResponse
+		s.DoJSON("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusOK, &identifierResp)
+		require.NotNil(t, identifierResp.Host.Roaming)
+		require.True(t, *identifierResp.Host.Roaming)
+
+		deviceToken := "android-roaming-device-token"
+		require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(t.Context(), androidHost.ID, deviceToken))
+		deviceRes := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+deviceToken, nil, http.StatusOK)
+		var deviceResp getDeviceHostResponse
+		require.NoError(t, json.NewDecoder(deviceRes.Body).Decode(&deviceResp))
+		require.NoError(t, deviceRes.Body.Close())
+		require.NotNil(t, deviceResp.Host.Roaming)
+		require.True(t, *deviceResp.Host.Roaming)
+	})
+
+	t.Run("agent reports not roaming", func(t *testing.T) {
+		putVitals(*androidHost.OrbitNodeKey, map[string]any{"roaming": false}, http.StatusOK)
+		host := getHost(androidHost.ID)
+		require.NotNil(t, host.Roaming)
+		require.False(t, *host.Roaming)
+
+		require.Nil(t, getHost(otherAndroidHost.ID).Roaming, "another host's report doesn't leak")
+	})
+
+	t.Run("hidden for personally-owned hosts", func(t *testing.T) {
+		personalHost := createOrbitEnrolledHost(t, "android", "-personal", s.ds)
+		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), personalHost.ID, false, true, "https://fleetdm.com", false,
+			fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeWorkProfile))
+		putVitals(*personalHost.OrbitNodeKey, map[string]any{"roaming": true}, http.StatusOK)
+
+		host := getHost(personalHost.ID)
+		require.Nil(t, host.Roaming)
+		require.NotNil(t, host.HostAndroidAgentVitals.ReportedAt, "the report time reveals nothing about the owner")
+
+		// Negative control: the same report on a company-owned host is returned.
+		require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), personalHost.ID, false, true, "https://fleetdm.com", false,
+			fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
+		require.NotNil(t, getHost(personalHost.ID).Roaming)
+	})
+
+	t.Run("an empty report is rejected", func(t *testing.T) {
+		before := getHost(androidHost.ID).HostAndroidAgentVitals.ReportedAt
+		putVitals(*androidHost.OrbitNodeKey, map[string]any{}, http.StatusUnprocessableEntity)
+		putVitals(*androidHost.OrbitNodeKey, map[string]any{"roaming": nil}, http.StatusUnprocessableEntity)
+		host := getHost(androidHost.ID)
+		require.False(t, *host.Roaming, "a rejected report leaves the last value")
+		require.True(t, host.HostAndroidAgentVitals.ReportedAt.Equal(*before))
+	})
+
+	t.Run("vitals unknown to this server are ignored", func(t *testing.T) {
+		// A newer agent may send vitals this server predates.
+		putVitals(*androidHost.OrbitNodeKey, map[string]any{"roaming": true, "vital_from_a_newer_agent": "x"}, http.StatusOK)
+		require.True(t, *getHost(androidHost.ID).Roaming)
+
+		// Without any vital this server knows, the report is empty.
+		putVitals(*androidHost.OrbitNodeKey, map[string]any{"vital_from_a_newer_agent": "x"}, http.StatusUnprocessableEntity)
+		require.True(t, *getHost(androidHost.ID).Roaming)
+	})
+
+	t.Run("non-Android orbit host is rejected", func(t *testing.T) {
+		putVitals(*macHost.OrbitNodeKey, map[string]any{"roaming": true}, http.StatusForbidden)
+		require.Nil(t, getHost(macHost.ID).Roaming)
+	})
+
+	t.Run("invalid node key is rejected", func(t *testing.T) {
+		putVitals("not-a-valid-node-key", map[string]any{"roaming": true}, http.StatusUnauthorized)
+	})
 }

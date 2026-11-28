@@ -10433,6 +10433,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(t.Context()).Exec(`
+          INSERT INTO host_android_agent_vitals (host_uuid, reported_at)
+          VALUES (?, NOW(6))
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(t.Context()).Exec(`
           INSERT INTO host_mdm_profile_opt_ins (host_uuid, profile_uuid)
           VALUES (?, uuid())
 	`, host.UUID)

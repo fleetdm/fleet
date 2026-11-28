@@ -23,6 +23,9 @@ func TestHostMDMAndroidDeviceVitals(t *testing.T) {
 		{"Load", testLoadHostMDMAndroidDeviceVitalsDB},
 		{"LoadPartial", testLoadHostMDMAndroidDeviceVitalsDBPartial},
 		{"LoadNoRow", testLoadHostMDMAndroidDeviceVitalsDBNoRow},
+		{"AgentVitalsBeforeStatusReport", testHostAndroidAgentVitalsBeforeStatusReport},
+		{"AgentVitalsAfterStatusReport", testHostAndroidAgentVitalsAfterStatusReport},
+		{"AgentVitalsEmptyReport", testHostAndroidAgentVitalsEmptyReport},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -226,4 +229,79 @@ func testLoadHostMDMAndroidDeviceVitalsDBNoRow(t *testing.T, ds *Datastore) {
 	require.Nil(t, host.TelephonyInfos)
 	require.Nil(t, host.IMEI)
 	require.Nil(t, host.MEID)
+}
+
+func testHostAndroidAgentVitalsBeforeStatusReport(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "android-agent-first", "1.1.1.7", "android-agent-first-key", "android-agent-first-uuid", time.Now(),
+		test.WithPlatform("android"))
+	otherHost := test.NewHost(t, ds, "android-agent-other", "1.1.1.8", "android-agent-other-key", "android-agent-other-uuid", time.Now(),
+		test.WithPlatform("android"))
+
+	// The agent can report before the first AMAPI status report.
+	require.NoError(t, ds.SetHostAndroidAgentVitals(ctx, host.UUID, fleet.AndroidAgentVitals{Roaming: new(true)}))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.NotNil(t, host.Roaming)
+	require.True(t, *host.Roaming)
+	require.NotNil(t, host.HostAndroidAgentVitals.ReportedAt)
+	require.Nil(t, host.Manufacturer)
+	firstReportedAt := *host.HostAndroidAgentVitals.ReportedAt
+
+	// The status report's full overwrite of AMAPI vitals keeps the agent's.
+	vitals := fullAndroidVitals()
+	require.NoError(t, ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.UUID, vitals))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.Equal(t, vitals.Manufacturer, host.Manufacturer)
+	require.NotNil(t, host.Roaming)
+	require.True(t, *host.Roaming)
+	require.True(t, host.HostAndroidAgentVitals.ReportedAt.Equal(firstReportedAt))
+
+	// Reporting false records false, not NULL, and moves reported_at.
+	require.NoError(t, ds.SetHostAndroidAgentVitals(ctx, host.UUID, fleet.AndroidAgentVitals{Roaming: new(false)}))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.NotNil(t, host.Roaming)
+	require.False(t, *host.Roaming)
+	require.True(t, host.HostAndroidAgentVitals.ReportedAt.After(firstReportedAt))
+
+	// Other hosts are unaffected.
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, otherHost))
+	require.Nil(t, otherHost.Roaming)
+	require.Nil(t, otherHost.HostAndroidAgentVitals.ReportedAt)
+
+	// Deleting the host deletes its agent vitals.
+	require.NoError(t, ds.DeleteHost(ctx, host.ID))
+	var count int
+	require.NoError(t, ds.writer(ctx).Get(&count, `SELECT COUNT(*) FROM host_android_agent_vitals WHERE host_uuid = ?`, host.UUID))
+	require.Zero(t, count)
+}
+
+func testHostAndroidAgentVitalsAfterStatusReport(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "android-agent-after", "1.1.1.9", "android-agent-after-key", "android-agent-after-uuid", time.Now(),
+		test.WithPlatform("android"))
+
+	vitals := fullAndroidVitals()
+	require.NoError(t, ds.SetOrUpdateHostMDMAndroidDeviceVitals(ctx, host.UUID, vitals))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.Nil(t, host.Roaming, "AMAPI status reports never set agent vitals")
+	require.Nil(t, host.HostAndroidAgentVitals.ReportedAt)
+
+	// Writing agent vitals leaves the AMAPI vitals in place.
+	require.NoError(t, ds.SetHostAndroidAgentVitals(ctx, host.UUID, fleet.AndroidAgentVitals{Roaming: new(true)}))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.NotNil(t, host.Roaming)
+	require.True(t, *host.Roaming)
+	require.Equal(t, vitals.Manufacturer, host.Manufacturer)
+	require.Equal(t, vitals.TelephonyInfos, host.TelephonyInfos)
+	require.Equal(t, vitals.APILevel, host.APILevel)
+}
+
+func testHostAndroidAgentVitalsEmptyReport(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "android-agent-empty", "1.1.1.10", "android-agent-empty-key", "android-agent-empty-uuid", time.Now(),
+		test.WithPlatform("android"))
+
+	require.Error(t, ds.SetHostAndroidAgentVitals(ctx, host.UUID, fleet.AndroidAgentVitals{}))
+	require.NoError(t, ds.LoadHostMDMAndroidDeviceVitals(ctx, host))
+	require.Nil(t, host.HostAndroidAgentVitals.ReportedAt)
 }

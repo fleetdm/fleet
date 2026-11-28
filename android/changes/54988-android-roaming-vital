@@ -1,0 +1,1 @@
+* The Android agent now reports whether the device is roaming to Fleet every 15 minutes, and sooner when the device starts or stops roaming.
