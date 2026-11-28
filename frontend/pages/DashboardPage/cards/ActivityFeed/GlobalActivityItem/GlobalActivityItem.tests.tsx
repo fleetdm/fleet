@@ -3329,6 +3329,38 @@ describe("Activity Feed", () => {
     expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
 
+  it("renders an added_label_to_host activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedLabelToHost,
+      details: {
+        host_id: 1,
+        host_display_name: "Anna's MacBook Pro",
+        label_id: 2,
+        label_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("added the label to .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a removed_label_from_host activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RemovedLabelFromHost,
+      details: {
+        host_id: 1,
+        host_display_name: "Anna's MacBook Pro",
+        label_id: 2,
+        label_name: "Workstations",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("removed the label from .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
+
   it.each([
     [ActivityType.AddedSelfServiceCategory, "added", "to"],
     [ActivityType.EditedSelfServiceCategory, "edited", "in"],

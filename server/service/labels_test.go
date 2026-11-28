@@ -1903,11 +1903,11 @@ func TestLabelActivities(t *testing.T) {
 		require.Empty(t, activities, "expected no activity for manual-label no-op")
 	})
 
-	t.Run("AddLabelsToHost emits edited_label per requested label", func(t *testing.T) {
+	t.Run("AddLabelsToHost emits edited_label and added_label_to_host per requested label", func(t *testing.T) {
 		activities = activities[:0]
 		const hostID = uint(7000)
 		const targetTeamID = uint(42)
-		host := &fleet.Host{ID: hostID, TeamID: ptr.Uint(targetTeamID), Platform: "darwin"}
+		host := &fleet.Host{ID: hostID, TeamID: new(targetTeamID), Platform: "darwin", ComputerName: "Anna's MacBook Pro"}
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			require.Equal(t, hostID, id)
 			return host, nil
@@ -1937,18 +1937,33 @@ func TestLabelActivities(t *testing.T) {
 		}
 
 		require.NoError(t, svc.AddLabelsToHost(ctx, hostID, []string{"global-manual", "team-manual"}))
-		require.Len(t, activities, 2)
-		byName := map[string]fleet.ActivityTypeEditedLabel{}
+		require.Len(t, activities, 4)
+		edited := map[string]fleet.ActivityTypeEditedLabel{}
+		added := map[string]fleet.ActivityTypeAddedLabelToHost{}
 		for _, a := range activities {
-			e, ok := a.(fleet.ActivityTypeEditedLabel)
-			require.True(t, ok, "expected edited_label, got %T", a)
-			byName[e.Name] = e
+			switch e := a.(type) {
+			case fleet.ActivityTypeEditedLabel:
+				edited[e.Name] = e
+			case fleet.ActivityTypeAddedLabelToHost:
+				added[e.LabelName] = e
+			default:
+				t.Fatalf("unexpected activity %T", a)
+			}
 		}
-		require.Nil(t, byName["global-manual"].FleetID)
-		require.NotNil(t, byName["team-manual"].FleetID)
-		require.Equal(t, targetTeamID, *byName["team-manual"].FleetID)
-		require.NotNil(t, byName["team-manual"].FleetName)
-		require.Equal(t, teamName, *byName["team-manual"].FleetName)
+		require.Len(t, edited, 2)
+		require.Nil(t, edited["global-manual"].FleetID)
+		require.NotNil(t, edited["team-manual"].FleetID)
+		require.Equal(t, targetTeamID, *edited["team-manual"].FleetID)
+		require.NotNil(t, edited["team-manual"].FleetName)
+		require.Equal(t, teamName, *edited["team-manual"].FleetName)
+
+		require.Len(t, added, 2)
+		require.Equal(t, fleet.ActivityTypeAddedLabelToHost{
+			HostID: hostID, HostDisplayName: "Anna's MacBook Pro", LabelID: 600, LabelName: "global-manual",
+		}, added["global-manual"])
+		require.Equal(t, fleet.ActivityTypeAddedLabelToHost{
+			HostID: hostID, HostDisplayName: "Anna's MacBook Pro", LabelID: 601, LabelName: "team-manual",
+		}, added["team-manual"])
 	})
 
 	t.Run("AddLabelsToHost dedupes label names in activities", func(t *testing.T) {
@@ -1976,16 +1991,18 @@ func TestLabelActivities(t *testing.T) {
 		}
 
 		require.NoError(t, svc.AddLabelsToHost(ctx, hostID, []string{"dup-label", "dup-label", "dup-label"}))
-		require.Len(t, activities, 1, "duplicate label names must produce a single activity")
+		require.Len(t, activities, 2, "duplicate label names must produce a single activity of each type")
 		got, ok := activities[0].(fleet.ActivityTypeEditedLabel)
 		require.True(t, ok)
 		require.Equal(t, "dup-label", got.Name)
+		_, ok = activities[1].(fleet.ActivityTypeAddedLabelToHost)
+		require.True(t, ok)
 	})
 
-	t.Run("RemoveLabelsFromHost emits edited_label", func(t *testing.T) {
+	t.Run("RemoveLabelsFromHost emits edited_label and removed_label_from_host", func(t *testing.T) {
 		activities = activities[:0]
 		const hostID = uint(7001)
-		host := &fleet.Host{ID: hostID, Platform: "darwin"} // no team
+		host := &fleet.Host{ID: hostID, Platform: "darwin", ComputerName: "Anna's MacBook Pro"} // no team
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return host, nil
 		}
@@ -2007,11 +2024,14 @@ func TestLabelActivities(t *testing.T) {
 		}
 
 		require.NoError(t, svc.RemoveLabelsFromHost(ctx, hostID, []string{"global-manual"}))
-		require.Len(t, activities, 1)
+		require.Len(t, activities, 2)
 		got, ok := activities[0].(fleet.ActivityTypeEditedLabel)
 		require.True(t, ok)
 		require.Equal(t, "global-manual", got.Name)
 		require.Nil(t, got.FleetID)
+		require.Equal(t, fleet.ActivityTypeRemovedLabelFromHost{
+			HostID: hostID, HostDisplayName: "Anna's MacBook Pro", LabelID: 700, LabelName: "global-manual",
+		}, activities[1])
 	})
 }
 

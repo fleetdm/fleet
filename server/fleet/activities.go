@@ -2749,6 +2749,28 @@ func (a ActivityTypeDeletedLabel) ActivityName() string {
 	return "deleted_label"
 }
 
+type ActivityTypeAddedLabelToHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	LabelID         uint   `json:"label_id"`
+	LabelName       string `json:"label_name"`
+}
+
+func (a ActivityTypeAddedLabelToHost) ActivityName() string {
+	return "added_label_to_host"
+}
+
+type ActivityTypeRemovedLabelFromHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	LabelID         uint   `json:"label_id"`
+	LabelName       string `json:"label_name"`
+}
+
+func (a ActivityTypeRemovedLabelFromHost) ActivityName() string {
+	return "removed_label_from_host"
+}
+
 type ActivityTypeAddedSelfServiceCategory struct {
 	SelfServiceCategoryName string  `json:"self_service_category_name"`
 	TeamID                  *uint   `json:"fleet_id"`

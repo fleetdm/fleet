@@ -438,6 +438,8 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeCreatedLabel{},
 		fleet.ActivityTypeEditedLabel{},
 		fleet.ActivityTypeDeletedLabel{},
+		fleet.ActivityTypeAddedLabelToHost{},
+		fleet.ActivityTypeRemovedLabelFromHost{},
 	},
 	CategoryCertificates: {
 		fleet.ActivityAddedNDESSCEPProxy{},

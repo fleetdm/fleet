@@ -1,0 +1,1 @@
+- Added the `added_label_to_host` and `removed_label_from_host` activities, generated when a host is added to or removed from a manual label with `POST /hosts/:id/labels` or `DELETE /hosts/:id/labels`.
