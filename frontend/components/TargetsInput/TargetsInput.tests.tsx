@@ -95,6 +95,42 @@ describe("TargetsInput", () => {
     expect(screen.queryByText("testName")).not.toBeInTheDocument();
   });
 
+  it.each([false, true])(
+    "keeps results dismissed across a refetch (initial loading: %s)",
+    async (initialLoading) => {
+      const renderSearch = (loading: boolean) => (
+        <>
+          <button type="button">Select fleet</button>
+          <TargetsInput
+            searchText="macbook"
+            searchResults={[]}
+            isTargetsLoading={loading}
+            hasFetchError={false}
+            targetedHosts={[]}
+            searchResultsTableConfig={[]}
+            selectedHostsTableConifg={[]}
+            setSearchText={noop}
+            handleRowSelect={noop}
+          />
+        </>
+      );
+
+      const { rerender } = render(renderSearch(initialLoading));
+      if (!initialLoading) {
+        expect(screen.getByText("No matching hosts")).toBeInTheDocument();
+      }
+      await userEvent.click(
+        screen.getByRole("button", { name: "Select fleet" })
+      );
+      rerender(renderSearch(true));
+      rerender(renderSearch(false));
+      expect(screen.queryByText("No matching hosts")).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("searchbox"));
+      expect(screen.getByText("No matching hosts")).toBeInTheDocument();
+    }
+  );
+
   it("sorts the OS column by the name and version it shows", async () => {
     const testHosts: IHost[] = [
       createMockHost({ id: 1, os_name: "Ubuntu", os_version: "22.04" }),
