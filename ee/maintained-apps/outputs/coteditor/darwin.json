@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.1.3",
+      "version": "7.2.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor' AND version_compare(bundle_short_version, '7.1.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.coteditor.CotEditor' AND version_compare(bundle_short_version, '7.2.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.coteditor.CotEditor' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/coteditor/CotEditor/releases/download/7.1.3/CotEditor_7.1.3.dmg",
+      "installer_url": "https://github.com/coteditor/CotEditor/releases/download/7.2.0/CotEditor_7.2.0.dmg",
       "install_script_ref": "4fc89dc5",
       "uninstall_script_ref": "474f6223",
-      "sha256": "c8cbe6437434516bb23f93efe057fd058ad56ded5523ac113081a8ae68dab184",
+      "sha256": "7df697c2108e55c1431b6f4563128e1fcb436ee56a7156df9c2846a573d42a27",
       "default_categories": [
         "Developer tools"
       ]
