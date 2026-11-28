@@ -1666,7 +1666,8 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	t := reflect.TypeFor[spec.GitOpsControls]()
 	result := map[string]any{}
 
-	if teamId != nil {
+	// Premium keeps unassigned scripts in unassigned.yml; Free has no fleets, so they go in default.yml.
+	if teamId != nil || !cmd.AppConfig.License.IsPremium() {
 		scripts, err := cmd.generateScripts(teamId, teamName)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating scripts: %s\n", err)

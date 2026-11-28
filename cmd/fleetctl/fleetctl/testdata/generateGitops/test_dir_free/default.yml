@@ -31,6 +31,8 @@ controls:
       name: Global MacOS JSON Profile
       path: ./lib/profiles/global-macos-json-profile.json
   enable_profile_validation: true
+  scripts:
+  - path: ./lib/scripts/Script A.sh
   windows_mdm_enabled: true
   windows_settings:
     configuration_profiles:

@@ -121,6 +121,12 @@ func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
 
 func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 	switch query {
+	case "":
+		return []*fleet.Script{{
+			ID:              4,
+			Name:            "Script A.sh",
+			ScriptContentID: 4,
+		}}, nil
 	case "fleet_id=1":
 		return []*fleet.Script{{
 			ID:              2,
@@ -253,6 +259,9 @@ func (MockClient) GetScriptContents(scriptID uint) ([]byte, error) {
 	}
 	if scriptID == 3 {
 		return []byte("#!/usr/bin/env pwsh\necho \"Hello from Script B!\""), nil
+	}
+	if scriptID == 4 {
+		return []byte("#!/bin/sh\necho \"Hello from Script A!\""), nil
 	}
 	return nil, errors.New("script not found")
 }
