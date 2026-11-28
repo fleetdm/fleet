@@ -10141,7 +10141,7 @@
       "name": "XnSoft XnConvert",
       "slug": "xnconvert/windows",
       "platform": "windows",
-      "unique_identifier": "XnConvert",
+      "unique_identifier": "XnConvert (x64)",
       "description": "XnSoft XnConvert is an image-converter and resiser tool."
     },
     {
