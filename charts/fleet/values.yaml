@@ -171,6 +171,12 @@ vulnProcessing:
     requests:
       cpu: 0.1 # 100Mhz
       memory: 50Mi
+  # Scheduling for the dedicated vulnerability processing CronJob only.
+  # Empty values fall back to the top-level nodeSelector, tolerations and
+  # affinity, which the Fleet Deployment also uses.
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
 
 ## Section: osquery
 # All of the settings related to osquery's interactions with the Fleet server

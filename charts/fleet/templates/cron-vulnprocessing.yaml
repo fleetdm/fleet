@@ -356,15 +356,15 @@ spec:
             - name: ca-certs
               emptyDir: {}
             {{- end }}
-          {{- with .Values.nodeSelector }}
+          {{- with (.Values.vulnProcessing.nodeSelector | default .Values.nodeSelector) }}
           nodeSelector:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-        {{- with .Values.affinity }}
+        {{- with (.Values.vulnProcessing.affinity | default .Values.affinity) }}
           affinity:
             {{- toYaml . | nindent 12 }}
         {{- end }}
-        {{- with .Values.tolerations }}
+        {{- with (.Values.vulnProcessing.tolerations | default .Values.tolerations) }}
           tolerations:
             {{- toYaml . | nindent 12 }}
         {{- end }}
