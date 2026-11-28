@@ -1,0 +1,45 @@
+name: Generate Fleet Installer
+
+on: push
+    # branches:
+    #   - 'fleetd/*'
+
+jobs:
+  generate_installer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install fleetctl
+        run: npm install -g fleetctl
+
+      - name: Generate fleetd
+        run: |
+          fleetctl package --type=msi \
+                           --enable-scripts \
+                           --fleet-desktop \
+                           --fleet-url=http://example.com \
+                           --enroll-secret=1234
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-fleetd
+          path: fleet-osquery.msi
+
+  code-sign-windows:
+    needs: generate_installer
+    uses: ./.github/workflows/code-sign-windows.yml
+    with:
+      filename: fleet-osquery.msi
+      upload_name: signed-fleetd
+      download_name: unsigned-fleetd
+    secrets:
+      DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+      DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+      DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+      DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+      DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
+
