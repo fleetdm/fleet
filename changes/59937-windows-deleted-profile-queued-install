@@ -1,0 +1,1 @@
+- Fixed Windows hosts that were offline when a configuration profile was deleted getting that profile when they checked in again. Deleting a profile, leaving it out of GitOps or a batch update, or deleting its fleet now also drops its install commands that hosts haven't picked up yet.
