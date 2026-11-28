@@ -228,7 +228,7 @@ To onboard an app: find the package name (`apt-cache search`, `dnf search`, or k
 ## Further reading
 
 - [Deploy software guide](https://fleetdm.com/guides/deploy-software-packages) for full detail on script-only packages, pre-install queries, and uninstall scripts.
-- [Fleet 4.89.0 release notes](https://fleetdm.com/releases/fleet-4.89.0).
+- [Fleet 4.89.0 release notes](https://fleetdm.com/releases/fleet-4-89-0).
 - [GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files).
 
 <meta name="articleTitle" value="Build a Linux self-service catalog with script-only packages">

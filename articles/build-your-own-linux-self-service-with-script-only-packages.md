@@ -20,7 +20,7 @@ That last item, the uninstall, is the unlock. With it, a script that runs `apt-g
 
 A script-only package is a `.sh` file (for Linux) or `.ps1` file (for Windows) that you add to Fleet as software. There is no installer binary and no metadata extraction. The file's contents are the install script, and Fleet runs them on the host when someone installs the "package."
 
-Before 4.89.0, that was the whole story: one script, run once, no way to undo it and no way to verify it worked. [Fleet 4.89.0](https://fleetdm.com/releases/fleet-4.89.0) changed that by letting a script-only package also carry:
+Before 4.89.0, that was the whole story: one script, run once, no way to undo it and no way to verify it worked. [Fleet 4.89.0](https://fleetdm.com/releases/fleet-4-89-0) changed that by letting a script-only package also carry:
 
 - a pre-install query, a check that must return at least one row before the install runs,
 - a post-install script, which runs after the install and, if it exits non-zero, fails the install and triggers the uninstall,
@@ -97,7 +97,7 @@ software:
 
 With `self_service: true`, the app shows up as a tile on the end user's **Fleet Desktop > Self-service** page, filed under the Support category (added as a default self-service category in 4.89.0). When they click install, `fleetd` runs the install script as root. When they remove it, the uninstall script runs.
 
-This is documented behavior, not a workaround. Both the [4.89.0 release notes](https://fleetdm.com/releases/fleet-4.89.0) and the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages) confirm that script-only packages support `uninstall_script`, `post_install_script`, and `pre_install_query`. The one thing they still do not support is `install_script` (the file's contents already are the install script) and automatic install through a policy, so drive installs through self-service or the setup experience, not `install_software`.
+This is documented behavior, not a workaround. Both the [4.89.0 release notes](https://fleetdm.com/releases/fleet-4-89-0) and the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages) confirm that script-only packages support `uninstall_script`, `post_install_script`, and `pre_install_query`. The one thing they still do not support is `install_script` (the file's contents already are the install script) and automatic install through a policy, so drive installs through self-service or the setup experience, not `install_software`.
 
 ## Guardrails: targeting and verification
 

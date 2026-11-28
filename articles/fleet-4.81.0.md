@@ -42,7 +42,7 @@ GitHub issue: [#33762](https://github.com/fleetdm/fleet/issues/33762)
 
 ### Windows profiles behave like macOS
 
-Just like macOS, Windows [configuration profiles](leetdm.com/guides/custom-os-settings) now apply payloads individually. If one payload fails, the rest still succeed, bringing consistency across platforms. IT Admins get faster enforcement of critical controls without waiting on edge-case fixes.
+Just like macOS, Windows [configuration profiles](https://fleetdm.com/guides/custom-os-settings) now apply payloads individually. If one payload fails, the rest still succeed, bringing consistency across platforms. IT Admins get faster enforcement of critical controls without waiting on edge-case fixes.
 
 GitHub issue: [#31922](https://github.com/fleetdm/fleet/issues/31922)
 

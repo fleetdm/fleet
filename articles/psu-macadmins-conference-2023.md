@@ -27,9 +27,9 @@ And it's not all work and no play. One of the dinners will be on Penn State's Bu
 
 ## Presenter highlight
 
-I'm excited to say that I'll be sharing some of my experiences at Fleet and beyond in a session on Thursday, July 20, at 9:00 am. My talk, "[Cross-platform open-source monitoring and reporting](https://sched.co/1MmXv)", will focus on how combining Fleet and osquery can provide real-time data from endpoints and proactively trigger support tickets or notifications when a computer encounters issues. It's a topic close to my heart, and I'm eager to share what I've learned.
+I'm excited to say that I'll be sharing some of my experiences at Fleet and beyond in a session on Thursday, July 20, at 9:00 am. My talk, "[Cross-platform open-source monitoring and reporting](https://www.youtube.com/watch?v=WfXCJxkau7g)", will focus on how combining Fleet and osquery can provide real-time data from endpoints and proactively trigger support tickets or notifications when a computer encounters issues. It's a topic close to my heart, and I'm eager to share what I've learned.
 
-Another must-see is Greg Neagle's talk at 10:45 am the same day, titled "[The Past, Present, and Future of Munki](https://sched.co/1OIYF)." If you don't know, Greg manages macOS devices at Walt Disney Animation Studios and is the primary developer of Munki. He'll be sharing some fantastic insights into Munki's development journey, its current standing, and where it's headed next. I'm told there'll even be an opportunity for attendees to contribute to Munki's future, so make sure not to miss it!
+Another must-see is Greg Neagle's talk at 10:45 am the same day, titled "[The Past, Present, and Future of Munki](https://www.youtube.com/watch?v=UHgqyp3oB1Y)." If you don't know, Greg manages macOS devices at Walt Disney Animation Studios and is the primary developer of Munki. He'll be sharing some fantastic insights into Munki's development journey, its current standing, and where it's headed next. I'm told there'll even be an opportunity for attendees to contribute to Munki's future, so make sure not to miss it!
 
 
 ## Come say hi to Fleet (and get some cool swag)

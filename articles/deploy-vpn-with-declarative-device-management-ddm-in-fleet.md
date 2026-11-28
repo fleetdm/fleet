@@ -16,7 +16,7 @@ The old VPN payload embedded the shared secret or credentials directly in the pr
 
 ## How credential delivery works
 
-A VPN declaration that authenticates with a shared secret references a separate asset declaration of type `com.apple.asset.credential.userpassword`. That asset doesn't contain the secret. It contains a `Reference.DataURL` pointing at a JSON file matching Apple's [credential reference schema](https://developer.apple.com/documentation/devicemanagement/credentials-asset), which the device fetches to resolve the actual username/password (used as the shared secret for IKEv2).
+A VPN declaration that authenticates with a shared secret references a separate asset declaration of type `com.apple.asset.credential.userpassword`. That asset doesn't contain the secret. It contains a `Reference.DataURL` pointing at a JSON file matching Apple's [credential reference schema](https://developer.apple.com/documentation/devicemanagement/assetcredentialusernameandpassword), which the device fetches to resolve the actual username/password (used as the shared secret for IKEv2).
 
 - **Fleet stores and delivers the asset JSON exactly as you upload it.** It doesn't fetch or cache your `DataURL` server-side or rewrite it, and it doesn't proxy the device's request either. The device talks to your infrastructure directly.
 - **Fleet always applies MDM authentication semantics to that fetch.** Apple's spec lets an asset declare `Authentication.Type` as either `MDM` or `None`, controlling how the device authenticates when it fetches the `DataURL`. `None` is a plain, unauthenticated GET. `MDM` means the device includes the same credentials it uses to talk to its MDM server, its device-identity certificate plus any user authentication, and is willing to present them if asked. Fleet always uses `MDM` here (asset uploads don't take an `Authentication` key at all), which means you have the option to build real device-level access control into your hosting server, by requesting and validating that certificate, without any extra setup on Fleet's side. Plain HTTPS hosting also works fine if you don't need that. See Security considerations below for what this does and doesn't protect against on its own.
@@ -107,7 +107,7 @@ IKEv2 is one of four new VPN declaration types (`network.vpn.ikev2`, `network.vp
 ## Further reading
 
 - [`com.apple.configuration.network.vpn.ikev2` declaration reference](https://developer.apple.com/documentation/devicemanagement/networkvpnikev2)
-- [Credential asset schema (`credential.userpassword.yaml`)](https://github.com/apple/device-management/blob/main/declarative/declarations/assets/credential.userpassword.yaml)
+- [Credential asset schema (`credential.userpassword.yaml`)](https://github.com/apple/device-management/blob/release/declarative/declarations/assets/credential.userpassword.yaml)
 - [WWDC 2026: what IT admins need to know](https://fleetdm.com/guides/wwdc-2026-what-it-admins-need-to-know)
 
 <meta name="articleTitle" value="Deploy VPN with declarative device management (DDM) in Fleet">

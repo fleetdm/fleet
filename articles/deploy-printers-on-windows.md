@@ -73,7 +73,7 @@ pnputil /add-driver "$infPath" /install
 Exit $LASTEXITCODE
 ```
 
-This uses [`pnputil /add-driver`](https://learn.microsoft.com/en-us/windows-hardware/drivers/install/pnputil-examples) to stage the driver into the Windows driver store.
+This uses [`pnputil /add-driver`](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/pnputil-examples) to stage the driver into the Windows driver store.
 
 5. After the driver installs on a test host, run [`Get-PrinterDriver`](https://learn.microsoft.com/en-us/powershell/module/printmanagement/get-printerdriver) on that host to get the exact driver name Windows registered. Vendor documentation often doesn't match this string exactly.
 6. Add a second software package for the printer itself, as a [script-only package](https://fleetdm.com/guides/deploy-software-packages#script-only-packages) following the same steps as the IPP printer above, but with this script instead:

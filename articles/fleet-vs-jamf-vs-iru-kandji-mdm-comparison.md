@@ -93,7 +93,7 @@ Automated evidence collection for compliance frameworks happens through schedule
 
 Choosing between Jamf and Iru (Kandji) addresses Apple device management, but for many organizations, this solves only part of the problem.
 
-[Fleet](https://fleetdm.com/device-management) is an open-source device management solution that provides unified visibility and control across macOS, iOS, Windows, Linux, ChromeOS, and Android. The solution integrates with existing identity providers, enforces security policies through [GitOps workflows](https://fleetdm.com/fleet-gitops), and delivers near real-time device reporting during incident response. [Schedule a demo](https://fleetdm.com/demo) to see how Fleet handles device management across entire fleets.
+[Fleet](https://fleetdm.com/device-management) is an open-source device management solution that provides unified visibility and control across macOS, iOS, Windows, Linux, ChromeOS, and Android. The solution integrates with existing identity providers, enforces security policies through [GitOps workflows](https://fleetdm.com/fleet-gitops), and delivers near real-time device reporting during incident response. [Schedule a demo](https://fleetdm.com/contact?talkToUs) to see how Fleet handles device management across entire fleets.
 
 ## Frequently asked questions
 
@@ -111,7 +111,7 @@ Note: Jamf supports Apple and Android, and Iru (Kandji) supports Apple, Windows,
 
 #### When does it make sense to use Jamf or Iru (Kandji) alongside a multi-platform solution?
 
-You can maintain Jamf or Iru (Kandji) for core device management while adding multi-platform solutions for unified querying, automated compliance evidence collection, and near real-time visibility across all platforms. This layered approach works when your teams have expertise with the existing MDM solution and need multi-platform capabilities without disrupting established workflows. Multi-platform solutions complement rather than conflict with existing MDM infrastructure. [Try Fleet](https://fleetdm.com/demo) to see how it integrates with your current device management setup.
+You can maintain Jamf or Iru (Kandji) for core device management while adding multi-platform solutions for unified querying, automated compliance evidence collection, and near real-time visibility across all platforms. This layered approach works when your teams have expertise with the existing MDM solution and need multi-platform capabilities without disrupting established workflows. Multi-platform solutions complement rather than conflict with existing MDM infrastructure. [Try Fleet](https://fleetdm.com/contact?talkToUs) to see how it integrates with your current device management setup.
 
 <meta name="articleTitle" value="Fleet vs. Jamf vs. Iru: How to Choose the Right MDM">
 <meta name="authorFullName" value="Ashish Kuthiala">

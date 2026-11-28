@@ -2,7 +2,7 @@
 
 ![Securing bank accounts from business email compromise](../website/assets/images/articles/securing-bank-accounts-from-business-email-compromise-1600x900@2x.jpg)
 
-According to the [FBI](https://www.ic3.gov/Media/Y2022/PSA220504), business email compromise (BEC) attacks are increasing in popularity yearly, costing organizations over 43 billion dollars in losses between 2016 and 2021.
+According to the [FBI](https://www.ic3.gov/PSA/2022/PSA220504), business email compromise (BEC) attacks are increasing in popularity yearly, costing organizations over 43 billion dollars in losses between 2016 and 2021.
 
 As BEC is a form of social engineering, we often think education is the only way to reduce the odds of getting compromised. 
 

@@ -43,7 +43,7 @@ With **Fleet-maintained apps**, packages are only downloaded when the app has be
 
 ### How to switch
 
-If you're currently using custom packages for software that Fleet maintains (common apps like Firefox, Chrome, Slack, Zoom, etc.), consider switching to the FMA equivalent. Check the [Fleet-maintained apps list](https://fleetdm.com/docs/using-fleet/fleet-maintained-apps) to see what's available.
+If you're currently using custom packages for software that Fleet maintains (common apps like Firefox, Chrome, Slack, Zoom, etc.), consider switching to the FMA equivalent. Check the [Fleet-maintained apps list](https://fleetdm.com/guides/fleet-maintained-apps) to see what's available.
 
 ### Current limitation
 
